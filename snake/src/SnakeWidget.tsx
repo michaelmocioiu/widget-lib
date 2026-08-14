@@ -33,7 +33,14 @@ export function SnakeWidget() {
 
       stepSnakeGame(g);
       const finished = checkWinCondition(g);
-      setGame({ ...g, players: g.players.map((p) => ({ ...p })), foods: [...g.foods] });
+      // stepSnakeGame mutates each player's `body` array in place
+      // (unshift/pop) -- the real server gets away with this because the
+      // socket payload is a fresh JSON-parsed array every tick, but here
+      // there's no serialization step, so `body` must be cloned per tick or
+      // SnakeChainTracker's prev/curr snapshots end up pointing at the same
+      // (already-mutated) array and tick interpolation collapses to an
+      // instant snap instead of a glide.
+      setGame({ ...g, players: g.players.map((p) => ({ ...p, body: [...p.body] })), foods: [...g.foods] });
 
       if (finished) {
         roundOverRef.current = true;
