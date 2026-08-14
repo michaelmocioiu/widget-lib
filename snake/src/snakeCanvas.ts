@@ -14,9 +14,6 @@ import type { GridCell, SnakeDeathCause } from "./types";
 export const PLAYER_COLOR = "#38bdf8";
 export const BOT_COLOR = "#f50b0b";
 export const EYE_COLOR = "#ffe8ec";
-export const SNAKE_FOOD_GLOW = "rgb(255, 253, 133)";
-export const SNAKE_FOOD_COLOR = "rgb(255, 252, 75)";
-
 export const SNAKE_TAPER_RATIO = 0.4;
 
 const SNAKE_TARGET_BOARD_PX = 900;
@@ -338,24 +335,172 @@ function drawSnakeCollisionEffect(
   ctx.restore();
 }
 
+// Deterministic per-cell hash so a given food's variant stays stable across
+// frames (position is the only identity foods have -- there's no persistent id).
+function hashCell(cell: GridCell): number {
+  let h = Math.imul(cell.x + 1, 374761393) ^ Math.imul(cell.y + 1, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 2246822519);
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+
+function drawApple(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  drawGlowCircle(ctx, cx, cy, r, "rgba(224, 52, 47, 0.45)", 5);
+  ctx.fillStyle = "#d8332c";
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + r * 0.06, r * 0.92, r * 0.86, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.32)";
+  ctx.beginPath();
+  ctx.ellipse(cx - r * 0.32, cy - r * 0.28, r * 0.22, r * 0.32, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#6b4423";
+  ctx.lineWidth = Math.max(1, r * 0.16);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r * 0.78);
+  ctx.lineTo(cx + r * 0.14, cy - r * 1.15);
+  ctx.stroke();
+  ctx.fillStyle = "#3fae4a";
+  ctx.beginPath();
+  ctx.ellipse(cx + r * 0.42, cy - r * 0.98, r * 0.28, r * 0.16, 0.6, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawCherries(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  drawGlowCircle(ctx, cx, cy, r, "rgba(200, 20, 60, 0.4)", 5);
+  const cr = r * 0.5;
+  const left = { x: cx - r * 0.4, y: cy + r * 0.4 };
+  const right = { x: cx + r * 0.4, y: cy + r * 0.4 };
+  ctx.strokeStyle = "#3fae4a";
+  ctx.lineWidth = Math.max(1, r * 0.1);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r * 0.85);
+  ctx.quadraticCurveTo(cx - r * 0.25, cy - r * 0.05, left.x, left.y - cr * 0.6);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r * 0.85);
+  ctx.quadraticCurveTo(cx + r * 0.25, cy - r * 0.05, right.x, right.y - cr * 0.6);
+  ctx.stroke();
+  for (const c of [left, right]) {
+    ctx.fillStyle = "#c81d3f";
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, cr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.beginPath();
+    ctx.arc(c.x - cr * 0.3, c.y - cr * 0.3, cr * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawOrange(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  drawGlowCircle(ctx, cx, cy, r, "rgba(255, 160, 0, 0.4)", 5);
+  ctx.fillStyle = "#f5941f";
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.92, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(190, 105, 0, 0.55)";
+  ctx.lineWidth = Math.max(1, r * 0.07);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + 0.3;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(a) * r * 0.85, cy + Math.sin(a) * r * 0.85);
+    ctx.stroke();
+  }
+  ctx.fillStyle = "rgba(255,255,255,0.28)";
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.28, cy - r * 0.28, r * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawGrapes(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  drawGlowCircle(ctx, cx, cy, r, "rgba(140, 60, 200, 0.4)", 5);
+  const gr = r * 0.3;
+  const offsets: [number, number][] = [
+    [-0.4, -0.3],
+    [0.4, -0.3],
+    [0, -0.6],
+    [-0.22, 0.15],
+    [0.22, 0.15],
+    [0, 0.5],
+  ];
+  for (const [ox, oy] of offsets) {
+    const gx = cx + ox * r;
+    const gy = cy + oy * r;
+    ctx.fillStyle = "#7b2fb5";
+    ctx.beginPath();
+    ctx.arc(gx, gy, gr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.22)";
+    ctx.beginPath();
+    ctx.arc(gx - gr * 0.3, gy - gr * 0.3, gr * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawStrawberry(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  drawGlowCircle(ctx, cx, cy, r, "rgba(255, 50, 80, 0.4)", 5);
+  ctx.fillStyle = "#e8264a";
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r * 0.8);
+  ctx.quadraticCurveTo(cx + r * 0.92, cy - r * 0.25, cx, cy + r * 0.92);
+  ctx.quadraticCurveTo(cx - r * 0.92, cy - r * 0.25, cx, cy - r * 0.8);
+  ctx.fill();
+  ctx.fillStyle = "#ffe08a";
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const sx = cx + Math.cos(a) * r * 0.38;
+    const sy = cy + Math.sin(a) * r * 0.48 + r * 0.1;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, r * 0.055, r * 0.09, a, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = "#3fae4a";
+  ctx.beginPath();
+  ctx.moveTo(cx - r * 0.33, cy - r * 0.76);
+  ctx.lineTo(cx, cy - r * 1.0);
+  ctx.lineTo(cx + r * 0.33, cy - r * 0.76);
+  ctx.lineTo(cx, cy - r * 0.56);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawWatermelon(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  drawGlowCircle(ctx, cx, cy, r, "rgba(255, 60, 80, 0.35)", 5);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.92, Math.PI, 0);
+  ctx.closePath();
+  ctx.fillStyle = "#2f8f3f";
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.78, Math.PI, 0);
+  ctx.closePath();
+  ctx.fillStyle = "#f5fbe0";
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.62, Math.PI, 0);
+  ctx.closePath();
+  ctx.fillStyle = "#e8264a";
+  ctx.fill();
+  ctx.fillStyle = "#2b2b2b";
+  for (let i = -2; i <= 2; i++) {
+    ctx.beginPath();
+    ctx.ellipse(cx + i * r * 0.18, cy - r * 0.14, r * 0.05, r * 0.08, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+const FOOD_DRAWERS = [drawApple, drawCherries, drawOrange, drawGrapes, drawStrawberry, drawWatermelon];
+
 function drawFood(ctx: CanvasRenderingContext2D, cell: GridCell, cellSize: number) {
   const cx = cell.x * cellSize + cellSize / 2;
   const cy = cell.y * cellSize + cellSize / 2;
-  const pulse = 0.85 + 0.15 * Math.sin(performance.now() / 200);
-  const r = cellSize * 0.32 * pulse;
+  const seed = hashCell(cell);
+  const pulse = 0.92 + 0.08 * Math.sin(performance.now() / 220 + seed);
+  const r = cellSize * 0.34 * pulse;
   ctx.save();
-  drawGlowCircle(ctx, cx, cy, r, SNAKE_FOOD_GLOW, 6);
-  ctx.fillStyle = SNAKE_FOOD_GLOW;
-  ctx.strokeStyle = "rgba(0,0,0,0.2)";
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.save();
-  ctx.beginPath();
-  ctx.fillStyle = SNAKE_FOOD_COLOR;
-  ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  FOOD_DRAWERS[seed % FOOD_DRAWERS.length](ctx, cx, cy, r);
   ctx.restore();
 }
 
