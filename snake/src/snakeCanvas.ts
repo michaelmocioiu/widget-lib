@@ -240,19 +240,22 @@ function drawBody(
       ctx.arc(eyeX + dx * pupilAlong, eyeY + dy * pupilAlong, pupilR, 0, Math.PI * 2);
       ctx.fill();
 
-      // Brow: a short dark bar over each eye, tilted down toward the snout
-      // (inward) to read as an angry V shape between the two eyes.
+      // Brow: a short dark bar set outward from the eye (away from the
+      // head's centerline, clear of the eye's radius) so it reads as
+      // sitting above the eye instead of cutting through it, tilted
+      // forward to read as an angry V shape between the two eyes.
       const perpUnitX = -dy;
       const perpUnitY = dx;
-      const browX = eyeX - dx * eyeR * 0.5;
-      const browY = eyeY - dy * eyeR * 0.5;
-      const browHalf = eyeR * 0.9;
-      const browTilt = eyeR * 0.9;
+      const browOutset = eyeR * 1.8;
+      const browHalf = eyeR * 0.7;
+      const browTilt = eyeR * 0.7;
+      const browX = eyeX + perpUnitX * side * browOutset;
+      const browY = eyeY + perpUnitY * side * browOutset;
       ctx.strokeStyle = "#000";
       ctx.lineWidth = Math.max(1.2, eyeR * 0.5);
       ctx.lineCap = "round";
       ctx.beginPath();
-      ctx.moveTo(browX + perpUnitX * side * browHalf, browY + perpUnitY * side * browHalf);
+      ctx.moveTo(browX + perpUnitX * side * browHalf - dx * browTilt, browY + perpUnitY * side * browHalf - dy * browTilt);
       ctx.lineTo(browX - perpUnitX * side * browHalf + dx * browTilt, browY - perpUnitY * side * browHalf + dy * browTilt);
       ctx.stroke();
     });
@@ -353,6 +356,28 @@ function drawFood(ctx: CanvasRenderingContext2D, cell: GridCell, cellSize: numbe
   ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+  ctx.restore();
+}
+
+export const SNAKE_PREVIEW_LENGTH = 5;
+export const SNAKE_PREVIEW_CELL_SIZE = 16;
+
+// Static mini rendering of a short rightward-facing snake for the settings
+// screen's player-color/face swatches -- reuses the same drawBody used for
+// the live board so the preview always matches what actually renders in-game.
+export function drawSnakePreview(canvas: HTMLCanvasElement, color: string, face: FaceStyle) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const cellSize = SNAKE_PREVIEW_CELL_SIZE;
+  const length = SNAKE_PREVIEW_LENGTH;
+  const body: GridCell[] = Array.from({ length }, (_, i) => ({ x: length - 1 - i, y: 0 }));
+  const breaks = body.map((_, i) => i === 0);
+
+  ctx.save();
+  ctx.translate(0, canvas.height / 2 - cellSize / 2);
+  drawBody(ctx, body, breaks, color, cellSize, length, 1, 1, face);
   ctx.restore();
 }
 

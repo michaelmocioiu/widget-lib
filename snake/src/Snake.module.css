@@ -225,7 +225,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: #23262f;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   padding: 0.75rem 0.85rem;
 }
@@ -330,6 +331,12 @@
   flex-direction: column;
   gap: 0.5rem;
   align-items: center;
+}
+
+.previewCanvas {
+  margin-top: 0.15rem;
+  background: #14171e;
+  border-radius: 6px;
 }
 
 .playerColumnLabel {

@@ -1,7 +1,24 @@
-import type { CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { BOARD_THEMES, COLOR_SWATCHES, FACE_OPTIONS, SPEED_OPTIONS } from "./settings";
-import type { SnakeSettings, PlayerAppearance } from "./settings";
+import type { SnakeSettings, PlayerAppearance, FaceStyle } from "./settings";
+import { drawSnakePreview, SNAKE_PREVIEW_LENGTH, SNAKE_PREVIEW_CELL_SIZE } from "./snakeCanvas";
 import styles from "./Snake.module.css";
+
+function SnakePreview({ color, face }: { color: string; face: FaceStyle }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) drawSnakePreview(canvas, color, face);
+  }, [color, face]);
+  return (
+    <canvas
+      ref={canvasRef}
+      width={SNAKE_PREVIEW_LENGTH * SNAKE_PREVIEW_CELL_SIZE}
+      height={SNAKE_PREVIEW_CELL_SIZE * 1.6}
+      className={styles.previewCanvas}
+    />
+  );
+}
 
 // 2x2 checkerboard preview swatch for a board theme, built purely from CSS
 // (no canvas needed) -- two opposing corners in each color.
@@ -90,6 +107,7 @@ function PlayerColumn({
           </button>
         ))}
       </div>
+      <SnakePreview color={appearance.color} face={appearance.face} />
     </div>
   );
 }
