@@ -6,28 +6,40 @@
 // pendingDirs by the caller (SnakeWidget).
 import { useEffect, useRef } from "react";
 import { useSnakeBoardRenderer, type SnakeCollisionEffect } from "./snakeCanvas";
-import { computeSnakeCellSize, PLAYER_COLOR, BOT_COLOR } from "./snakeCanvas";
+import { computeSnakeCellSize } from "./snakeCanvas";
 import styles from "./Snake.module.css";
 import type { Direction, GridCell, SnakeDeathCause } from "./types";
 
-const KEY_TO_DIRECTION: Record<string, Direction> = {
-  ArrowUp: "up",
-  w: "up",
-  W: "up",
-  ArrowDown: "down",
-  s: "down",
-  S: "down",
-  ArrowLeft: "left",
-  a: "left",
-  A: "left",
-  ArrowRight: "right",
-  d: "right",
-  D: "right",
-};
 const SWIPE_THRESHOLD = 24;
 
+// One entry per human-controlled snake. `keys` lists every keyboard key
+// (already normalized: letters lowercased, arrow keys left as-is) that
+// steers this snake in each direction -- lets solo/vsBot modes accept both
+// WASD and arrow keys, while local2p splits them one set per player.
+export interface ControlScheme {
+  playerId: string;
+  label: string;
+  color: string;
+  keysLabel: string;
+  keys: Record<Direction, string[]>;
+}
+
+function normalizeKey(key: string): string {
+  return key.length === 1 ? key.toLowerCase() : key;
+}
+
+function buildKeyMap(schemes: ControlScheme[]): Map<string, { playerId: string; dir: Direction }> {
+  const map = new Map<string, { playerId: string; dir: Direction }>();
+  schemes.forEach((scheme) => {
+    (Object.keys(scheme.keys) as Direction[]).forEach((dir) => {
+      scheme.keys[dir].forEach((key) => map.set(normalizeKey(key), { playerId: scheme.playerId, dir }));
+    });
+  });
+  return map;
+}
+
 export interface SnakeInputPlayer {
-  id: "player" | "bot";
+  id: string;
   body: GridCell[];
   alive: boolean;
   deathCause?: SnakeDeathCause | null;
@@ -38,11 +50,24 @@ export interface SnakeGameInputProps {
   grid: { w: number; h: number };
   foods: { x: number; y: number }[];
   players: SnakeInputPlayer[];
-  sendDirection: (dir: Direction) => void;
+  controlSchemes: ControlScheme[];
+  // Every player's snake color, including non-human ones (the bot) that
+  // have no ControlScheme entry -- keyed separately so a color source
+  // doesn't have to be a controllable player.
+  colorByPlayerId: Record<string, string>;
+  sendDirection: (playerId: string, dir: Direction) => void;
   statusText: string;
 }
 
-export function SnakeGameInput({ grid, foods, players, sendDirection, statusText }: SnakeGameInputProps) {
+export function SnakeGameInput({
+  grid,
+  foods,
+  players,
+  controlSchemes,
+  colorByPlayerId,
+  sendDirection,
+  statusText,
+}: SnakeGameInputProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -52,21 +77,29 @@ export function SnakeGameInput({ grid, foods, players, sendDirection, statusText
 
   const cellSize = computeSnakeCellSize(grid.w, grid.h);
 
-  const me = players.find((p) => p.id === "player");
-  const canAct = me?.alive ?? false;
+  const aliveByPlayerId = new Map(players.map((p) => [p.id, p.alive]));
+  // Single-scheme modes (solo/vsBot) show a touch d-pad for the one human
+  // player; shared-keyboard local2p has no sensible touch equivalent.
+  const dpadScheme = controlSchemes.length === 1 ? controlSchemes[0] : null;
+  const canAct = dpadScheme ? (aliveByPlayerId.get(dpadScheme.playerId) ?? false) : false;
 
   const snakes = players
     .filter((p) => p.alive)
     .map((p) => ({
       key: p.id,
       body: p.body,
-      color: p.id === "player" ? PLAYER_COLOR : BOT_COLOR,
+      color: colorByPlayerId[p.id] ?? "#38bdf8",
     }));
 
   useSnakeBoardRenderer(canvasRef, grid, cellSize, snakes, foods, null, collisionEffectsRef);
 
-  function handleDirection(dir: Direction) {
-    sendDirection(dir);
+  const latestRef = useRef({ aliveByPlayerId, sendDirection });
+  latestRef.current = { aliveByPlayerId, sendDirection };
+
+  function handleDirection(playerId: string, dir: Direction) {
+    const { aliveByPlayerId: alive, sendDirection: send } = latestRef.current;
+    if (!(alive.get(playerId) ?? false)) return;
+    send(playerId, dir);
   }
 
   useEffect(() => {
@@ -79,7 +112,7 @@ export function SnakeGameInput({ grid, foods, players, sendDirection, statusText
           collisionEffectsRef.current.push({
             cell: p.deathCell,
             cause: p.deathCause,
-            color: p.id === "player" ? PLAYER_COLOR : BOT_COLOR,
+            color: colorByPlayerId[p.id] ?? "#38bdf8",
             startedAt: performance.now(),
           });
         }
@@ -94,17 +127,17 @@ export function SnakeGameInput({ grid, foods, players, sendDirection, statusText
   }, [foods]);
 
   useEffect(() => {
-    if (!canAct) return;
+    const keyMap = buildKeyMap(controlSchemes);
     const onKeyDown = (e: KeyboardEvent) => {
-      const direction = KEY_TO_DIRECTION[e.key];
-      if (!direction) return;
+      const mapped = keyMap.get(normalizeKey(e.key));
+      if (!mapped) return;
       e.preventDefault();
-      handleDirection(direction);
+      handleDirection(mapped.playerId, mapped.dir);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canAct]);
+  }, [controlSchemes]);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -119,13 +152,13 @@ export function SnakeGameInput({ grid, foods, players, sendDirection, statusText
     const onTouchEnd = (e: TouchEvent) => {
       const start = touchStartRef.current;
       touchStartRef.current = null;
-      if (!start || !canAct) return;
+      if (!start || !dpadScheme) return;
       const touch = e.changedTouches[0];
       const dx = touch.clientX - start.x;
       const dy = touch.clientY - start.y;
       if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) return;
       const direction: Direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up";
-      handleDirection(direction);
+      handleDirection(dpadScheme.playerId, direction);
     };
     el.addEventListener("touchstart", onTouchStart, { passive: false });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
@@ -136,7 +169,7 @@ export function SnakeGameInput({ grid, foods, players, sendDirection, statusText
       el.removeEventListener("touchend", onTouchEnd);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canAct]);
+  }, [dpadScheme?.playerId]);
 
   return (
     <div className={styles.wrap} ref={wrapRef}>
@@ -147,44 +180,56 @@ export function SnakeGameInput({ grid, foods, players, sendDirection, statusText
         className={styles.canvas}
       />
       <div className={styles.statusLabel}>{statusText}</div>
-      <div className={styles.dpad}>
-        <button
-          type="button"
-          className={`${styles.dpadBtn} ${styles.dpadUp}`}
-          onPointerDown={() => handleDirection("up")}
-          disabled={!canAct}
-          aria-label="Up"
-        >
-          ▲
-        </button>
-        <button
-          type="button"
-          className={`${styles.dpadBtn} ${styles.dpadLeft}`}
-          onPointerDown={() => handleDirection("left")}
-          disabled={!canAct}
-          aria-label="Left"
-        >
-          ◀
-        </button>
-        <button
-          type="button"
-          className={`${styles.dpadBtn} ${styles.dpadRight}`}
-          onPointerDown={() => handleDirection("right")}
-          disabled={!canAct}
-          aria-label="Right"
-        >
-          ▶
-        </button>
-        <button
-          type="button"
-          className={`${styles.dpadBtn} ${styles.dpadDown}`}
-          onPointerDown={() => handleDirection("down")}
-          disabled={!canAct}
-          aria-label="Down"
-        >
-          ▼
-        </button>
-      </div>
+      {controlSchemes.length > 1 && (
+        <div className={styles.controlLegend}>
+          {controlSchemes.map((scheme) => (
+            <span key={scheme.playerId} className={styles.controlLegendItem}>
+              <span className={styles.controlSwatch} style={{ background: scheme.color }} />
+              {scheme.label}: {scheme.keysLabel}
+            </span>
+          ))}
+        </div>
+      )}
+      {dpadScheme && (
+        <div className={styles.dpad}>
+          <button
+            type="button"
+            className={`${styles.dpadBtn} ${styles.dpadUp}`}
+            onPointerDown={() => handleDirection(dpadScheme.playerId, "up")}
+            disabled={!canAct}
+            aria-label="Up"
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            className={`${styles.dpadBtn} ${styles.dpadLeft}`}
+            onPointerDown={() => handleDirection(dpadScheme.playerId, "left")}
+            disabled={!canAct}
+            aria-label="Left"
+          >
+            ◀
+          </button>
+          <button
+            type="button"
+            className={`${styles.dpadBtn} ${styles.dpadRight}`}
+            onPointerDown={() => handleDirection(dpadScheme.playerId, "right")}
+            disabled={!canAct}
+            aria-label="Right"
+          >
+            ▶
+          </button>
+          <button
+            type="button"
+            className={`${styles.dpadBtn} ${styles.dpadDown}`}
+            onPointerDown={() => handleDirection(dpadScheme.playerId, "down")}
+            disabled={!canAct}
+            aria-label="Down"
+          >
+            ▼
+          </button>
+        </div>
+      )}
     </div>
   );
 }

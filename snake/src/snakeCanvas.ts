@@ -12,7 +12,9 @@ import type { GridCell, SnakeDeathCause } from "./types";
 export const PLAYER_COLOR = "#38bdf8";
 export const BOT_COLOR = "#f50b0b";
 export const EYE_COLOR = "#ffe8ec";
-export const SNAKE_FOOD_COLOR = "rgb(255, 133, 157)";
+export const SNAKE_FOOD_GLOW = "rgb(255, 253, 133)";
+export const SNAKE_FOOD_COLOR = "rgb(255, 252, 75)";
+
 export const SNAKE_TAPER_RATIO = 0.4;
 
 const SNAKE_TARGET_BOARD_PX = 900;
@@ -197,10 +199,19 @@ function drawBody(
   const perpX = -dy * across;
   const perpY = dx * across;
   const eyeR = cellSize * 0.1;
-  ctx.fillStyle = EYE_COLOR;
+  const pupilR = eyeR * 0.45;
+  const pupilAlong = eyeR * 0.4;
   [1, -1].forEach((side) => {
+    const eyeX = head.x + dx * along + perpX * side;
+    const eyeY = head.y + dy * along + perpY * side;
+    ctx.fillStyle = EYE_COLOR;
     ctx.beginPath();
-    ctx.arc(head.x + dx * along + perpX * side, head.y + dy * along + perpY * side, eyeR, 0, Math.PI * 2);
+    ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.arc(eyeX + dx * pupilAlong, eyeY + dy * pupilAlong, pupilR, 0, Math.PI * 2);
     ctx.fill();
   });
 
@@ -272,15 +283,15 @@ function drawFood(ctx: CanvasRenderingContext2D, cell: GridCell, cellSize: numbe
   const pulse = 0.85 + 0.15 * Math.sin(performance.now() / 200);
   const r = cellSize * 0.32 * pulse;
   ctx.save();
-  drawGlowCircle(ctx, cx, cy, r, SNAKE_FOOD_COLOR, 6);
-  ctx.fillStyle = SNAKE_FOOD_COLOR;
+  drawGlowCircle(ctx, cx, cy, r, SNAKE_FOOD_GLOW, 6);
+  ctx.fillStyle = SNAKE_FOOD_GLOW;
   ctx.strokeStyle = "rgba(0,0,0,0.2)";
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.save();
   ctx.beginPath();
-  ctx.fillStyle = "#790d0d";
+  ctx.fillStyle = SNAKE_FOOD_COLOR;
   ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
@@ -313,11 +324,11 @@ export function drawSnakeBoard(
     patternCanvas.height = cellSize * 2;
     const pctx = patternCanvas.getContext("2d")!;
 
-    pctx.fillStyle = "#a24949";
+    pctx.fillStyle = "rgb(52, 96, 47)";
     pctx.fillRect(0, 0, cellSize, cellSize);
     pctx.fillRect(cellSize, cellSize, cellSize, cellSize);
 
-    pctx.fillStyle = "#da6571";
+    pctx.fillStyle = "hsl(114, 34%, 38%)";
     pctx.fillRect(cellSize, 0, cellSize, cellSize);
     pctx.fillRect(0, cellSize, cellSize, cellSize);
 

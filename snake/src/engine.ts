@@ -5,7 +5,7 @@
 // growth spread one segment per tick, self/crash/head-on collision, a
 // chance for each dead segment to become food, and a max-round-length
 // stalemate cap.
-import type { Direction, GridCell } from "./types";
+import type { Direction, GridCell, GameMode } from "./types";
 
 export const GRID_W = 16;
 export const GRID_H = 16;
@@ -31,8 +31,10 @@ const OPPOSITE_DIR: Record<Direction, Direction> = {
 
 export type SnakeDeathCause = "self" | "crash" | "headon";
 
+export type PlayerId = string;
+
 export interface SnakePlayerState {
-  id: "player" | "bot";
+  id: PlayerId;
   body: GridCell[];
   dir: Direction;
   pendingDirs: Direction[];
@@ -43,13 +45,14 @@ export interface SnakePlayerState {
 }
 
 export interface SnakeGameState {
+  mode: GameMode;
   w: number;
   h: number;
   players: SnakePlayerState[];
   foods: GridCell[];
   startedAt: number;
   resolved: boolean;
-  winnerId: "player" | "bot" | null;
+  winnerId: PlayerId | null;
   reason: "both_wrong" | "timeout" | null;
 }
 
@@ -85,13 +88,35 @@ function duelSpawns(): { body: GridCell[]; dir: Direction }[] {
   ];
 }
 
-export function createSnakeGame(): SnakeGameState {
-  const spawns = duelSpawns();
-  const players: SnakePlayerState[] = [
-    { id: "player", body: spawns[0].body, dir: spawns[0].dir, pendingDirs: [], alive: true, growthRemaining: 0, deathCause: null, deathCell: null },
-    { id: "bot", body: spawns[1].body, dir: spawns[1].dir, pendingDirs: [], alive: true, growthRemaining: 0, deathCause: null, deathCell: null },
-  ];
+function soloSpawn(): { body: GridCell[]; dir: Direction } {
+  const len = START_LENGTH;
+  return { body: Array.from({ length: len }, (_, i) => ({ x: len - 1 - i, y: Math.floor(GRID_H / 2) })), dir: "right" };
+}
+
+// Player ids per mode: solo has just "p1"; vsBot keeps the original
+// "player"/"bot" pairing (the bot AI looks for id "bot"); local2p is two
+// humans sharing a keyboard, "p1" (WASD) and "p2" (arrow keys).
+export function playerIdsForMode(mode: GameMode): PlayerId[] {
+  if (mode === "solo") return ["p1"];
+  if (mode === "vsBot") return ["player", "bot"];
+  return ["p1", "p2"];
+}
+
+export function createSnakeGame(mode: GameMode = "vsBot"): SnakeGameState {
+  const ids = playerIdsForMode(mode);
+  const spawns = mode === "solo" ? [soloSpawn()] : duelSpawns();
+  const players: SnakePlayerState[] = ids.map((id, i) => ({
+    id,
+    body: spawns[i].body,
+    dir: spawns[i].dir,
+    pendingDirs: [],
+    alive: true,
+    growthRemaining: 0,
+    deathCause: null,
+    deathCell: null,
+  }));
   return {
+    mode,
     w: GRID_W,
     h: GRID_H,
     players,
@@ -136,7 +161,7 @@ export function computeBotDirection(game: SnakeGameState): Direction | null {
   return pool.reduce((best, d) => (distanceToNearestFood(d) < distanceToNearestFood(best) ? d : best), pool[0]);
 }
 
-export function queueDirection(game: SnakeGameState, playerId: "player" | "bot", dir: Direction) {
+export function queueDirection(game: SnakeGameState, playerId: PlayerId, dir: Direction) {
   const p = game.players.find((pl) => pl.id === playerId);
   if (p) p.pendingDirs.push(dir);
 }
@@ -258,17 +283,31 @@ export function stepSnakeGame(game: SnakeGameState) {
 export function checkWinCondition(game: SnakeGameState): boolean {
   if (game.resolved) return true;
   const alive = game.players.filter((p) => p.alive);
-  if (alive.length <= 1) {
+  const solo = game.players.length === 1;
+
+  if (solo) {
+    if (alive.length === 0) {
+      game.resolved = true;
+      game.winnerId = null;
+      return true;
+    }
+  } else if (alive.length <= 1) {
     game.resolved = true;
-    game.winnerId = alive.length === 1 ? (alive[0].id as "player" | "bot") : null;
+    game.winnerId = alive.length === 1 ? alive[0].id : null;
     game.reason = alive.length === 0 ? "both_wrong" : null;
     return true;
   }
+
   if (Date.now() - game.startedAt > MAX_ROUND_MS) {
+    if (solo) {
+      game.resolved = true;
+      game.winnerId = game.players[0].id;
+      return true;
+    }
     const longest = [...game.players].sort((a, b) => b.body.length - a.body.length);
     const tied = longest.filter((p) => p.body.length === longest[0].body.length);
     game.resolved = true;
-    game.winnerId = tied.length === 1 ? (tied[0].id as "player" | "bot") : null;
+    game.winnerId = tied.length === 1 ? tied[0].id : null;
     game.reason = tied.length === 1 ? null : "timeout";
     return true;
   }
