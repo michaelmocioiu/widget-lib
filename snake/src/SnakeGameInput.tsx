@@ -1,4 +1,4 @@
-// Adapted from nangame's SnakeGameInput.tsx -- input handling (keyboard,
+// Adapted input handling (keyboard,
 // touch swipe, on-screen d-pad) and canvas rendering, stripped of the
 // socket-driven client-prediction reconciliation (SnakePredictedState/
 // useGridPredictor) since a local single-process tick loop has no network

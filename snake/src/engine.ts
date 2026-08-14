@@ -1,4 +1,4 @@
-// Standalone port of nangame's server/minigames/snake.js simulation --
+// Standalone port of the original game's server-side snake simulation --
 // stepSnakeGame, computeBotSnakeDirection, and checkSnakeWinCondition,
 // rewritten as a plain client-side tick loop (no server, no sockets). Rules
 // kept faithful to the original: wraparound edges, no-reverse turn queue,

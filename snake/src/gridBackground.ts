@@ -1,4 +1,4 @@
-// Trimmed from nangame's client/src/lib/gridGameEngine.ts -- just the
+// Trimmed down to just the
 // cached background-layer builder snakeCanvas.ts uses for its checkered
 // board fill.
 const layerCache = new Map<string, HTMLCanvasElement>();

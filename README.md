@@ -7,9 +7,9 @@ site can embed one via a plain script tag:
 
 ```html
 <div id="my-widget"></div>
-<script src="https://<user>.github.io/widget-lib/<name>/<name>.js"></script>
+<script src="https://michaelmocioiu.github.io/widget-lib/<name>/<name>.js"></script>
 <script>
-  window.Nangame<Name>.mount(document.getElementById("my-widget"));
+  window.<Name>.mount(document.getElementById("my-widget"));
 </script>
 ```
 
@@ -28,7 +28,7 @@ widget's React/Vite/TypeScript deps) — it does not share a build graph.
 
 ## Mount contract
 
-Every widget attaches one global (`window.Nangame<Name>`) with a
+Every widget attaches one global (`window.<Name>`) with a
 `mount(container, options)` function that renders into a plain DOM element,
 and an `unmount()` to clean up. No other globals, no assumptions about the
 host page. This is the same contract the repo's own gallery page uses to

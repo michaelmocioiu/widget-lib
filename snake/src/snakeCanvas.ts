@@ -1,5 +1,5 @@
-// Adapted from nangame's client/src/components/minigames/snake/snakeCanvas.ts
-// -- rendering logic is copied essentially verbatim; only the identity-color
+// Adapted from the original game's snake canvas renderer -- rendering logic
+// is copied essentially verbatim; only the identity-color
 // lookup (snakeColorFor) is replaced with a plain player/bot 2-color map,
 // since there's no identity system in a standalone widget.
 import { useEffect, useRef, type RefObject, type MutableRefObject } from "react";

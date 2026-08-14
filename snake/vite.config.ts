@@ -14,7 +14,7 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, "src/entry.ts"),
-      name: "NangameSnake",
+      name: "SnakeDuel",
       formats: ["iife"],
       fileName: () => "snake.js",
     },

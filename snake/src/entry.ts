@@ -20,7 +20,7 @@ export interface SnakeMountHandle {
 function ensureStyleInjected() {
   if (styleInjected) return;
   const style = document.createElement("style");
-  style.setAttribute("data-nangame-snake", "");
+  style.setAttribute("data-snake-duel-widget", "");
   style.textContent = css;
   document.head.appendChild(style);
   styleInjected = true;
@@ -41,8 +41,8 @@ export function unmount(handle: SnakeMountHandle) {
 
 declare global {
   interface Window {
-    NangameSnake: { mount: typeof mount; unmount: typeof unmount };
+    SnakeDuel: { mount: typeof mount; unmount: typeof unmount };
   }
 }
 
-window.NangameSnake = { mount, unmount };
+window.SnakeDuel = { mount, unmount };

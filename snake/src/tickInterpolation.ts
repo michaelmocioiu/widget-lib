@@ -1,4 +1,4 @@
-// Trimmed copy of nangame's client/src/lib/tickInterpolation.ts -- only the
+// Trimmed down to only the
 // pieces snakeCanvas.ts actually needs (lerpCell + lerpChainEnds). The full
 // file's createTickClock/snapshot-buffer machinery is for reconciling
 // against a real server tick source, which a local single-process loop
@@ -12,7 +12,7 @@ export function lerpCell(prev: GridCell, curr: GridCell, t: number, maxStep = 1.
   return { x: prev.x + dx * t, y: prev.y + dy * t };
 }
 
-// Only the head/tail actually move between ticks -- see nangame's original
+// Only the head/tail actually move between ticks -- see the original
 // header comment on why interpolating every index independently makes
 // corners visibly rotate during the glide.
 export function lerpChainEnds<T extends GridCell>(prevBody: T[], currBody: T[], t: number): T[] {

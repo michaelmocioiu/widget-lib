@@ -1,4 +1,4 @@
-// Copied from nangame's client/src/lib/canvasFx.ts -- cheap glow alternative
+// Cheap glow alternative
 // to ctx.shadowBlur (a real per-frame cost on many mobile Canvas2D
 // implementations).
 export function drawGlowCircle(
