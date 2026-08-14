@@ -6,13 +6,13 @@
     <meta name="author" content="Michael Benjamin Mocioiu" />
     <meta
       name="description"
-      content="Snake Duel, a browser-based snake game by Michael Benjamin Mocioiu. Play solo, vs. AI, or head-to-head, and embed it on your own page."
+      content="__WIDGET_TITLE__, a browser-based widget by Michael Benjamin Mocioiu. Embed it on your own page."
     />
     <link
       rel="canonical"
-      href="https://michaelmocioiu.github.io/widget-lib/snake/"
+      href="https://michaelmocioiu.github.io/widget-lib/__WIDGET_NAME__/"
     />
-    <title>Snake Duel - Michael's Widgets</title>
+    <title>__WIDGET_TITLE__ - Michael's Widgets</title>
     <style>
       body {
         background: #0b0d12;
@@ -24,6 +24,25 @@
         gap: 1.5rem;
         padding: 0.75rem 1rem;
         margin: 0;
+      }
+      .back-link {
+        position: absolute;
+        top: 0.75rem;
+        left: 0.75rem;
+        z-index: 10;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 0.75rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+        color: #eee;
+        text-decoration: none;
+        font-size: 0.85rem;
+      }
+      .back-link:hover {
+        background: rgba(255, 255, 255, 0.16);
       }
       header {
         width: 100%;
@@ -89,25 +108,6 @@
       .copy-btn:hover {
         background: #2a3040;
       }
-      .back-link {
-        position: absolute;
-        top: 0.75rem;
-        left: 0.75rem;
-        z-index: 10;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.4rem 0.75rem;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        background: rgba(255, 255, 255, 0.08);
-        color: #eee;
-        text-decoration: none;
-        font-size: 0.85rem;
-      }
-      .back-link:hover {
-        background: rgba(255, 255, 255, 0.16);
-      }
     </style>
   </head>
   <body>
@@ -120,7 +120,7 @@
     </a>
 
     <header>
-      <h1>Snake Duel</h1>
+      <h1>__WIDGET_TITLE__</h1>
     </header>
 
     <section id="dev-live-section" style="display: none">
@@ -130,14 +130,14 @@
     <script type="module" src="/src/main.tsx"></script>
 
     <section>
-      <div id="snake-widget"></div>
-      <script src="https://michaelmocioiu.github.io/widget-lib/snake/dist/snake.js"></script>
+      <div id="__WIDGET_NAME__-widget"></div>
+      <script src="https://michaelmocioiu.github.io/widget-lib/__WIDGET_NAME__/dist/__WIDGET_NAME__.js"></script>
       <script>
-        if (window.SnakeDuel?.mount) {
-          window.SnakeDuel.mount(document.getElementById("snake-widget"));
+        if (window.__GLOBAL_NAME__?.mount) {
+          window.__GLOBAL_NAME__.mount(document.getElementById("__WIDGET_NAME__-widget"));
         } else {
           console.error(
-            "SnakeDuel did not load. Check script URL and deploy path.",
+            "__GLOBAL_NAME__ did not load. Check script URL and deploy path.",
           );
         }
       </script>
@@ -150,13 +150,13 @@
           <span class="code-card-label">HTML</span>
           <button class="copy-btn" id="copy-embed-btn" type="button">Copy</button>
         </div>
-        <pre id="embed-code"><code>&lt;div id="snake-widget"&gt;&lt;/div&gt;
-&lt;script src="https://michaelmocioiu.github.io/widget-lib/snake/dist/snake.js"&gt;&lt;/script&gt;
+        <pre id="embed-code"><code>&lt;div id="__WIDGET_NAME__-widget"&gt;&lt;/div&gt;
+&lt;script src="https://michaelmocioiu.github.io/widget-lib/__WIDGET_NAME__/dist/__WIDGET_NAME__.js"&gt;&lt;/script&gt;
 &lt;script&gt;
-  if (window.SnakeDuel?.mount) {
-    window.SnakeDuel.mount(document.getElementById("snake-widget"));
+  if (window.__GLOBAL_NAME__?.mount) {
+    window.__GLOBAL_NAME__.mount(document.getElementById("__WIDGET_NAME__-widget"));
   } else {
-    console.error("SnakeDuel did not load. Check script URL and deploy path.");
+    console.error("__GLOBAL_NAME__ did not load. Check script URL and deploy path.");
   }
 &lt;/script&gt;</code></pre>
       </div>

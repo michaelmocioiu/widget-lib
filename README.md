@@ -43,6 +43,7 @@ in the gallery too.
 
 ## Status
 
-No GitHub Pages deploy workflow or gallery landing page yet — each widget
-folder is just committed here for now until that repo-wide infrastructure
-gets built.
+The root `index.html` gallery page lists every widget in a grid; add a new
+entry to the `WIDGETS` array there for each widget folder. No GitHub Pages
+deploy workflow yet — each widget folder is just committed here for now
+until that repo-wide infrastructure gets built.
