@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { BOARD_THEMES, COLOR_SWATCHES, FACE_OPTIONS } from "./settings";
+import { BOARD_THEMES, COLOR_SWATCHES, FACE_OPTIONS, SPEED_OPTIONS } from "./settings";
 import type { SnakeSettings, PlayerAppearance } from "./settings";
 import styles from "./Snake.module.css";
 
@@ -114,6 +114,22 @@ export function SettingsScreen({ settings, onChange, onBack }: SettingsScreenPro
             value={settings.foodCount}
             onChange={(v) => onChange({ ...settings, foodCount: v })}
           />
+          <div className={styles.settingsRow}>
+            <span className={styles.settingsLabel}>Game speed</span>
+            <div className={styles.faceRow}>
+              {SPEED_OPTIONS.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  className={`${styles.faceBtn} ${settings.speed === opt.id ? styles.faceBtnActive : ""}`}
+                  aria-pressed={settings.speed === opt.id}
+                  onClick={() => onChange({ ...settings, speed: opt.id })}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className={styles.settingsRow}>
             <span className={styles.settingsLabel}>Edge wrapping</span>
             <button

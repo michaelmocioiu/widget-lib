@@ -446,9 +446,9 @@ class SnakeChainTracker {
     }
   }
 
-  sample(): Map<string, GridCell[]> {
+  sample(tickMs: number = TICK_MS): Map<string, GridCell[]> {
     const elapsed = performance.now() - this.lastTickTime;
-    const t = Math.min(1.0, Math.max(0.0, elapsed / TICK_MS));
+    const t = Math.min(1.0, Math.max(0.0, elapsed / tickMs));
 
     const result = new Map<string, GridCell[]>();
     this.currByKey.forEach((body, key) => {
@@ -458,9 +458,9 @@ class SnakeChainTracker {
     return result;
   }
 
-  getInterpolationProgress(): number {
+  getInterpolationProgress(tickMs: number = TICK_MS): number {
     const elapsed = performance.now() - this.lastTickTime;
-    return Math.min(1, Math.max(0, elapsed / TICK_MS));
+    return Math.min(1, Math.max(0, elapsed / tickMs));
   }
 }
 
@@ -485,14 +485,15 @@ export function useSnakeBoardRenderer(
   selfOverrideRef: RefObject<SnakeSelfOverride | null> | null = null,
   collisionEffectsRef: MutableRefObject<SnakeCollisionEffect[]> | null = null,
   theme: BoardTheme = BOARD_THEMES[0],
+  tickMs: number = TICK_MS,
 ) {
   const chainTracker = useSnakeChainInterpolator(snakes.map((s) => ({ key: s.key, body: s.body })));
 
   const colorByKey = new Map(snakes.map((s) => [s.key, s.color]));
   const faceByKey = new Map(snakes.map((s) => [s.key, s.face ?? "classic"]));
   const keys = snakes.map((s) => s.key);
-  const latestRef = useRef({ grid, cellSize, foods, colorByKey, faceByKey, keys, theme });
-  latestRef.current = { grid, cellSize, foods, colorByKey, faceByKey, keys, theme };
+  const latestRef = useRef({ grid, cellSize, foods, colorByKey, faceByKey, keys, theme, tickMs });
+  latestRef.current = { grid, cellSize, foods, colorByKey, faceByKey, keys, theme, tickMs };
 
   useEffect(() => {
     let rafId: number;
@@ -501,8 +502,8 @@ export function useSnakeBoardRenderer(
       if (canvas) {
         const s = latestRef.current;
         const override = selfOverrideRef?.current;
-        const sampledBodies = chainTracker.sample();
-        const t = chainTracker.getInterpolationProgress();
+        const sampledBodies = chainTracker.sample(s.tickMs);
+        const t = chainTracker.getInterpolationProgress(s.tickMs);
         const sampled = s.keys.map((key) => ({
           key,
           body: override?.key === key ? override.cells : (sampledBodies.get(key) ?? []),

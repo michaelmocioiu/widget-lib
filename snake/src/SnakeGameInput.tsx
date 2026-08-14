@@ -7,6 +7,7 @@
 import { useEffect, useRef } from "react";
 import { useSnakeBoardRenderer, type SnakeCollisionEffect } from "./snakeCanvas";
 import { computeSnakeCellSize } from "./snakeCanvas";
+import { TICK_MS } from "./engine";
 import type { BoardTheme, FaceStyle } from "./settings";
 import { BOARD_THEMES } from "./settings";
 import styles from "./Snake.module.css";
@@ -59,6 +60,7 @@ export interface SnakeGameInputProps {
   colorByPlayerId: Record<string, string>;
   faceByPlayerId?: Record<string, FaceStyle>;
   boardTheme?: BoardTheme;
+  tickMs?: number;
   sendDirection: (playerId: string, dir: Direction) => void;
 }
 
@@ -70,6 +72,7 @@ export function SnakeGameInput({
   colorByPlayerId,
   faceByPlayerId,
   boardTheme = BOARD_THEMES[0],
+  tickMs,
   sendDirection,
 }: SnakeGameInputProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -96,7 +99,7 @@ export function SnakeGameInput({
       face: faceByPlayerId?.[p.id],
     }));
 
-  useSnakeBoardRenderer(canvasRef, grid, cellSize, snakes, foods, null, collisionEffectsRef, boardTheme);
+  useSnakeBoardRenderer(canvasRef, grid, cellSize, snakes, foods, null, collisionEffectsRef, boardTheme, tickMs ?? TICK_MS);
 
   const latestRef = useRef({ aliveByPlayerId, sendDirection });
   latestRef.current = { aliveByPlayerId, sendDirection };

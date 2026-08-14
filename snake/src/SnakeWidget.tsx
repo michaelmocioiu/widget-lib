@@ -5,7 +5,6 @@ import {
   computeBotDirection,
   checkWinCondition,
   queueDirection,
-  TICK_MS,
   type SnakeGameState,
 } from "./engine";
 import { SnakeGameInput, type ControlScheme } from "./SnakeGameInput";
@@ -159,9 +158,9 @@ export function SnakeWidget() {
           setPhase("menu");
         }, KILL_FREEZE_MS);
       }
-    }, TICK_MS);
+    }, game.config.tickMs);
     return () => clearInterval(interval);
-  }, [phase, mode]);
+  }, [phase, mode, game.config.tickMs]);
 
   // 3, 2, 1, then "playing" -- the actual tick loop only starts once this
   // finishes, so nothing can move (or die) mid-countdown.
@@ -202,6 +201,7 @@ export function SnakeWidget() {
           colorByPlayerId={colorByPlayerId}
           faceByPlayerId={faceByPlayerId}
           boardTheme={boardTheme}
+          tickMs={game.config.tickMs}
           sendDirection={handleDirection}
         />
         {phase === "countdown" && (

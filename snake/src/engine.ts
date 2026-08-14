@@ -39,12 +39,14 @@ export interface SnakeGameConfig {
   segmentsPerDot: number;
   foodCount: number;
   edgeWrapping: boolean;
+  tickMs: number;
 }
 
 export const DEFAULT_GAME_CONFIG: SnakeGameConfig = {
   segmentsPerDot: SEGMENTS_PER_DOT,
   foodCount: FOOD_COUNT,
   edgeWrapping: true,
+  tickMs: TICK_MS,
 };
 
 export interface SnakePlayerState {

@@ -9,10 +9,13 @@ export interface PlayerAppearance {
   face: FaceStyle;
 }
 
+export type GameSpeed = "slow" | "medium" | "fast";
+
 export interface SnakeSettings {
   segmentsPerDot: number;
   foodCount: number;
   edgeWrapping: boolean;
+  speed: GameSpeed;
   p1: PlayerAppearance;
   p2: PlayerAppearance;
   boardThemeId: string;
@@ -43,6 +46,18 @@ export const FACE_OPTIONS: FaceOption[] = [
   { id: "angry", label: "Angry" },
 ];
 
+export interface SpeedOption {
+  id: GameSpeed;
+  label: string;
+  tickMs: number;
+}
+
+export const SPEED_OPTIONS: SpeedOption[] = [
+  { id: "slow", label: "Slow", tickMs: 180 },
+  { id: "medium", label: "Medium", tickMs: 140 },
+  { id: "fast", label: "Fast", tickMs: 120 },
+];
+
 export interface BoardTheme {
   id: string;
   label: string;
@@ -61,6 +76,7 @@ export const DEFAULT_SETTINGS: SnakeSettings = {
   segmentsPerDot: 3,
   foodCount: 2,
   edgeWrapping: true,
+  speed: "medium",
   p1: { color: COLOR_SWATCHES[0].color, face: "classic" },
   p2: { color: COLOR_SWATCHES[1].color, face: "classic" },
   boardThemeId: BOARD_THEMES[0].id,
@@ -93,10 +109,15 @@ export function boardThemeById(id: string): BoardTheme {
   return BOARD_THEMES.find((t) => t.id === id) ?? BOARD_THEMES[0];
 }
 
+export function tickMsForSpeed(speed: GameSpeed): number {
+  return (SPEED_OPTIONS.find((s) => s.id === speed) ?? SPEED_OPTIONS[1]).tickMs;
+}
+
 export function settingsToGameConfig(settings: SnakeSettings): SnakeGameConfig {
   return {
     segmentsPerDot: settings.segmentsPerDot,
     foodCount: settings.foodCount,
     edgeWrapping: settings.edgeWrapping,
+    tickMs: tickMsForSpeed(settings.speed),
   };
 }
