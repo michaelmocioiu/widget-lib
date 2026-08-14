@@ -7,6 +7,8 @@ import { TICK_MS } from "./engine";
 import { getGridBackgroundLayer } from "./gridBackground";
 import { lerpChainEnds } from "./tickInterpolation";
 import { drawGlowCircle } from "./canvasFx";
+import type { BoardTheme, FaceStyle } from "./settings";
+import { BOARD_THEMES } from "./settings";
 import type { GridCell, SnakeDeathCause } from "./types";
 
 export const PLAYER_COLOR = "#38bdf8";
@@ -47,6 +49,7 @@ function drawBody(
   gridW: number,
   gridH: number,
   t: number,
+  face: FaceStyle = "classic",
 ) {
   if (body.length === 0) return;
 
@@ -201,19 +204,73 @@ function drawBody(
   const eyeR = cellSize * 0.1;
   const pupilR = eyeR * 0.45;
   const pupilAlong = eyeR * 0.4;
-  [1, -1].forEach((side) => {
-    const eyeX = head.x + dx * along + perpX * side;
-    const eyeY = head.y + dy * along + perpY * side;
-    ctx.fillStyle = EYE_COLOR;
-    ctx.beginPath();
-    ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2);
-    ctx.fill();
 
-    ctx.fillStyle = "#000";
-    ctx.beginPath();
-    ctx.arc(eyeX + dx * pupilAlong, eyeY + dy * pupilAlong, pupilR, 0, Math.PI * 2);
-    ctx.fill();
-  });
+  if (face === "sleepy") {
+    // Half-closed: a flat lash line (perpendicular to travel) over a small pupil, no eye white.
+    const lidHalf = eyeR * 1.1;
+    const lidDx = -dy;
+    const lidDy = dx;
+    [1, -1].forEach((side) => {
+      const eyeX = head.x + dx * along + perpX * side;
+      const eyeY = head.y + dy * along + perpY * side;
+      ctx.strokeStyle = EYE_COLOR;
+      ctx.lineWidth = Math.max(1.2, eyeR * 0.4);
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(eyeX - lidDx * lidHalf, eyeY - lidDy * lidHalf);
+      ctx.lineTo(eyeX + lidDx * lidHalf, eyeY + lidDy * lidHalf);
+      ctx.stroke();
+
+      ctx.fillStyle = "#000";
+      ctx.beginPath();
+      ctx.arc(eyeX + dx * pupilAlong * 0.6, eyeY + dy * pupilAlong * 0.6, pupilR * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  } else if (face === "angry") {
+    [1, -1].forEach((side) => {
+      const eyeX = head.x + dx * along + perpX * side;
+      const eyeY = head.y + dy * along + perpY * side;
+      ctx.fillStyle = EYE_COLOR;
+      ctx.beginPath();
+      ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#000";
+      ctx.beginPath();
+      ctx.arc(eyeX + dx * pupilAlong, eyeY + dy * pupilAlong, pupilR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Brow: a short dark bar over each eye, tilted down toward the snout
+      // (inward) to read as an angry V shape between the two eyes.
+      const perpUnitX = -dy;
+      const perpUnitY = dx;
+      const browX = eyeX - dx * eyeR * 0.5;
+      const browY = eyeY - dy * eyeR * 0.5;
+      const browHalf = eyeR * 0.9;
+      const browTilt = eyeR * 0.9;
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = Math.max(1.2, eyeR * 0.5);
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(browX + perpUnitX * side * browHalf, browY + perpUnitY * side * browHalf);
+      ctx.lineTo(browX - perpUnitX * side * browHalf + dx * browTilt, browY - perpUnitY * side * browHalf + dy * browTilt);
+      ctx.stroke();
+    });
+  } else {
+    [1, -1].forEach((side) => {
+      const eyeX = head.x + dx * along + perpX * side;
+      const eyeY = head.y + dy * along + perpY * side;
+      ctx.fillStyle = EYE_COLOR;
+      ctx.beginPath();
+      ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#000";
+      ctx.beginPath();
+      ctx.arc(eyeX + dx * pupilAlong, eyeY + dy * pupilAlong, pupilR, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
 
   if (n > 1) {
     ctx.shadowColor = "transparent";
@@ -237,6 +294,7 @@ export const SNAKE_COLLISION_ANIM_MS: Record<SnakeDeathCause, number> = {
   self: 350,
   crash: 350,
   headon: 550,
+  wall: 350,
 };
 
 export function isSnakeCollisionEffectExpired(effect: SnakeCollisionEffect, now: number): boolean {
@@ -302,6 +360,26 @@ export interface SnakeBoardEntry {
   key: string;
   body: GridCell[];
   color: string;
+  face?: FaceStyle;
+}
+
+export function paintCheckeredPattern(ctx: CanvasRenderingContext2D, cellSize: number, theme: BoardTheme) {
+  const patternCanvas = document.createElement("canvas");
+  patternCanvas.width = cellSize * 2;
+  patternCanvas.height = cellSize * 2;
+  const pctx = patternCanvas.getContext("2d")!;
+
+  pctx.fillStyle = theme.dark;
+  pctx.fillRect(0, 0, cellSize, cellSize);
+  pctx.fillRect(cellSize, cellSize, cellSize, cellSize);
+
+  pctx.fillStyle = theme.light;
+  pctx.fillRect(cellSize, 0, cellSize, cellSize);
+  pctx.fillRect(0, cellSize, cellSize, cellSize);
+
+  const pattern = ctx.createPattern(patternCanvas, "repeat")!;
+  ctx.fillStyle = pattern;
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 }
 
 export function drawSnakeBoard(
@@ -314,33 +392,21 @@ export function drawSnakeBoard(
   collisionEffects: SnakeCollisionEffect[] = [],
   now: number = performance.now(),
   t: number = 1.0,
+  theme: BoardTheme = BOARD_THEMES[0],
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  const paintCheckered = (ctx: CanvasRenderingContext2D) => {
-    const patternCanvas = document.createElement("canvas");
-    patternCanvas.width = cellSize * 2;
-    patternCanvas.height = cellSize * 2;
-    const pctx = patternCanvas.getContext("2d")!;
-
-    pctx.fillStyle = "rgb(52, 96, 47)";
-    pctx.fillRect(0, 0, cellSize, cellSize);
-    pctx.fillRect(cellSize, cellSize, cellSize, cellSize);
-
-    pctx.fillStyle = "hsl(114, 34%, 38%)";
-    pctx.fillRect(cellSize, 0, cellSize, cellSize);
-    pctx.fillRect(0, cellSize, cellSize, cellSize);
-
-    const pattern = ctx.createPattern(patternCanvas, "repeat")!;
-    ctx.fillStyle = pattern;
-    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  };
-
-  ctx.drawImage(getGridBackgroundLayer(grid.w, grid.h, cellSize, "checkered", paintCheckered), 0, 0);
+  ctx.drawImage(
+    getGridBackgroundLayer(grid.w, grid.h, cellSize, `checkered:${theme.id}`, (c) => paintCheckeredPattern(c, cellSize, theme)),
+    0,
+    0,
+  );
 
   foods.forEach((f) => drawFood(ctx, f, cellSize));
-  snakes.forEach((s) => drawBody(ctx, s.body, breaksByKey.get(s.key) ?? [], s.color, cellSize, grid.w, grid.h, t));
+  snakes.forEach((s) =>
+    drawBody(ctx, s.body, breaksByKey.get(s.key) ?? [], s.color, cellSize, grid.w, grid.h, t, s.face ?? "classic"),
+  );
   collisionEffects.forEach((fx) => {
     const c = cellCenter(fx.cell, cellSize);
     drawSnakeCollisionEffect(ctx, c.x, c.y, cellSize, fx, now);
@@ -418,13 +484,15 @@ export function useSnakeBoardRenderer(
   foods: GridCell[],
   selfOverrideRef: RefObject<SnakeSelfOverride | null> | null = null,
   collisionEffectsRef: MutableRefObject<SnakeCollisionEffect[]> | null = null,
+  theme: BoardTheme = BOARD_THEMES[0],
 ) {
   const chainTracker = useSnakeChainInterpolator(snakes.map((s) => ({ key: s.key, body: s.body })));
 
   const colorByKey = new Map(snakes.map((s) => [s.key, s.color]));
+  const faceByKey = new Map(snakes.map((s) => [s.key, s.face ?? "classic"]));
   const keys = snakes.map((s) => s.key);
-  const latestRef = useRef({ grid, cellSize, foods, colorByKey, keys });
-  latestRef.current = { grid, cellSize, foods, colorByKey, keys };
+  const latestRef = useRef({ grid, cellSize, foods, colorByKey, faceByKey, keys, theme });
+  latestRef.current = { grid, cellSize, foods, colorByKey, faceByKey, keys, theme };
 
   useEffect(() => {
     let rafId: number;
@@ -439,11 +507,12 @@ export function useSnakeBoardRenderer(
           key,
           body: override?.key === key ? override.cells : (sampledBodies.get(key) ?? []),
           color: s.colorByKey.get(key) || PLAYER_COLOR,
+          face: s.faceByKey.get(key),
         }));
         const breaksByKey = new Map(sampled.map((entry) => [entry.key, computeBodyBreaks(entry.body)]));
         const now = performance.now();
         const effects = collisionEffectsRef?.current ?? [];
-        drawSnakeBoard(canvas, s.grid, s.cellSize, sampled, s.foods, breaksByKey, effects, now, t);
+        drawSnakeBoard(canvas, s.grid, s.cellSize, sampled, s.foods, breaksByKey, effects, now, t, s.theme);
         if (collisionEffectsRef && effects.length > 0) {
           collisionEffectsRef.current = effects.filter((fx) => !isSnakeCollisionEffectExpired(fx, now));
         }

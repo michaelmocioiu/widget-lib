@@ -5,7 +5,7 @@ export interface GridCell {
 
 export type Direction = "up" | "down" | "left" | "right";
 
-export type SnakeDeathCause = "self" | "crash" | "headon";
+export type SnakeDeathCause = "self" | "crash" | "headon" | "wall";
 
 // "solo": single snake, no opponent -- round ends when the player dies.
 // "vsBot": original player-vs-bot duel.

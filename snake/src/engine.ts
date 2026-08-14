@@ -29,9 +29,23 @@ const OPPOSITE_DIR: Record<Direction, Direction> = {
   right: "left",
 };
 
-export type SnakeDeathCause = "self" | "crash" | "headon";
+export type SnakeDeathCause = "self" | "crash" | "headon" | "wall";
 
 export type PlayerId = string;
+
+// Tunable rules exposed through the settings screen. `edgeWrapping: false`
+// means running off the board kills instead of teleporting to the other side.
+export interface SnakeGameConfig {
+  segmentsPerDot: number;
+  foodCount: number;
+  edgeWrapping: boolean;
+}
+
+export const DEFAULT_GAME_CONFIG: SnakeGameConfig = {
+  segmentsPerDot: SEGMENTS_PER_DOT,
+  foodCount: FOOD_COUNT,
+  edgeWrapping: true,
+};
 
 export interface SnakePlayerState {
   id: PlayerId;
@@ -54,6 +68,7 @@ export interface SnakeGameState {
   resolved: boolean;
   winnerId: PlayerId | null;
   reason: "both_wrong" | "timeout" | null;
+  config: SnakeGameConfig;
 }
 
 function allOccupiedCells(players: SnakePlayerState[]): GridCell[] {
@@ -102,7 +117,7 @@ export function playerIdsForMode(mode: GameMode): PlayerId[] {
   return ["p1", "p2"];
 }
 
-export function createSnakeGame(mode: GameMode = "vsBot"): SnakeGameState {
+export function createSnakeGame(mode: GameMode = "vsBot", config: SnakeGameConfig = DEFAULT_GAME_CONFIG): SnakeGameState {
   const ids = playerIdsForMode(mode);
   const spawns = mode === "solo" ? [soloSpawn()] : duelSpawns();
   const players: SnakePlayerState[] = ids.map((id, i) => ({
@@ -120,11 +135,12 @@ export function createSnakeGame(mode: GameMode = "vsBot"): SnakeGameState {
     w: GRID_W,
     h: GRID_H,
     players,
-    foods: randomEmptyCells(allOccupiedCells(players), GRID_W, GRID_H, FOOD_COUNT),
+    foods: randomEmptyCells(allOccupiedCells(players), GRID_W, GRID_H, config.foodCount),
     startedAt: Date.now(),
     resolved: false,
     winnerId: null,
     reason: null,
+    config,
   };
 }
 
@@ -137,26 +153,34 @@ export function computeBotDirection(game: SnakeGameState): Direction | null {
   if (!self.alive || game.foods.length === 0) return null;
   const w = game.w;
   const h = game.h;
+  const edgeWrapping = game.config.edgeWrapping;
   const candidates: Direction[] = (["up", "down", "left", "right"] as Direction[]).filter(
     (d) => d !== OPPOSITE_DIR[self.dir],
   );
   const head = self.body[0];
   const occupied = new Set(allOccupiedCells(game.players).map((c) => `${c.x},${c.y}`));
 
+  const inBounds = (c: GridCell) => c.x >= 0 && c.x < w && c.y >= 0 && c.y < h;
   const nextCell = (d: Direction) => {
     const v = DIRECTION_VECTORS[d];
-    return { x: (head.x + v.x + w) % w, y: (head.y + v.y + h) % h };
+    const raw = { x: head.x + v.x, y: head.y + v.y };
+    return edgeWrapping ? { x: (raw.x + w) % w, y: (raw.y + h) % h } : raw;
   };
-  const safe = candidates.filter((d) => {
+  // Without wraparound, running off the board is fatal -- never worth
+  // choosing over a wall-safe direction unless every option runs off.
+  const withinBounds = edgeWrapping ? candidates : candidates.filter((d) => inBounds(nextCell(d)));
+  const boundedPool = withinBounds.length > 0 ? withinBounds : candidates;
+  const safe = boundedPool.filter((d) => {
     const nc = nextCell(d);
     return !occupied.has(`${nc.x},${nc.y}`);
   });
-  const pool = safe.length > 0 ? safe : candidates;
+  const pool = safe.length > 0 ? safe : boundedPool;
 
   const wrapDist = (a: number, b: number, size: number) => Math.min(Math.abs(a - b), size - Math.abs(a - b));
+  const dist1d = (a: number, b: number, size: number) => (edgeWrapping ? wrapDist(a, b, size) : Math.abs(a - b));
   const distanceToNearestFood = (d: Direction) => {
     const nc = nextCell(d);
-    return Math.min(...game.foods.map((f) => wrapDist(nc.x, f.x, w) + wrapDist(nc.y, f.y, h)));
+    return Math.min(...game.foods.map((f) => dist1d(nc.x, f.x, w) + dist1d(nc.y, f.y, h)));
   };
   return pool.reduce((best, d) => (distanceToNearestFood(d) < distanceToNearestFood(best) ? d : best), pool[0]);
 }
@@ -169,7 +193,7 @@ export function queueDirection(game: SnakeGameState, playerId: PlayerId, dir: Di
 // One full simulation step -- movement, growth, food, collision. Mutates
 // `game` in place, same as the server's stepSnakeGame.
 export function stepSnakeGame(game: SnakeGameState) {
-  const { w, h, foods, players } = game;
+  const { w, h, foods, players, config } = game;
   const alive = players.filter((p) => p.alive);
 
   alive.forEach((p) => {
@@ -181,19 +205,35 @@ export function stepSnakeGame(game: SnakeGameState) {
     }
   });
 
+  const died = new Map<SnakePlayerState, boolean>(alive.map((p) => [p, false]));
+  const deathInfo = new Map<SnakePlayerState, { cause: SnakeDeathCause; cell: GridCell }>();
+
   const nextHead = new Map<SnakePlayerState, GridCell>();
   alive.forEach((p) => {
     const v = DIRECTION_VECTORS[p.dir];
     const head = p.body[0];
-    nextHead.set(p, { x: (head.x + v.x + w) % w, y: (head.y + v.y + h) % h });
+    const raw = { x: head.x + v.x, y: head.y + v.y };
+    if (config.edgeWrapping) {
+      nextHead.set(p, { x: (raw.x + w) % w, y: (raw.y + h) % h });
+      return;
+    }
+    if (raw.x < 0 || raw.x >= w || raw.y < 0 || raw.y >= h) {
+      const clamped = { x: Math.max(0, Math.min(w - 1, raw.x)), y: Math.max(0, Math.min(h - 1, raw.y)) };
+      died.set(p, true);
+      deathInfo.set(p, { cause: "wall", cell: clamped });
+      nextHead.set(p, clamped);
+      return;
+    }
+    nextHead.set(p, raw);
   });
 
   const eatenFoodIdx = new Map<SnakePlayerState, number>();
   alive.forEach((p) => {
+    if (died.get(p)) return;
     const nh = nextHead.get(p)!;
     const idx = foods.findIndex((f) => f.x === nh.x && f.y === nh.y);
     eatenFoodIdx.set(p, idx);
-    if (idx !== -1) p.growthRemaining += SEGMENTS_PER_DOT;
+    if (idx !== -1) p.growthRemaining += config.segmentsPerDot;
   });
   const growingThisTick = new Map(alive.map((p) => [p, p.growthRemaining > 0] as const));
 
@@ -202,10 +242,8 @@ export function stepSnakeGame(game: SnakeGameState) {
     return growing ? p.body : p.body.slice(0, p.body.length - 1);
   };
 
-  const died = new Map<SnakePlayerState, boolean>(alive.map((p) => [p, false]));
-  const deathInfo = new Map<SnakePlayerState, { cause: SnakeDeathCause; cell: GridCell }>();
-
   alive.forEach((p) => {
+    if (died.get(p)) return;
     const nh = nextHead.get(p)!;
     if (bodyForCollision(p).some((c) => c.x === nh.x && c.y === nh.y)) {
       died.set(p, true);

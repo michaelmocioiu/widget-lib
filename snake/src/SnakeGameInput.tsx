@@ -7,6 +7,8 @@
 import { useEffect, useRef } from "react";
 import { useSnakeBoardRenderer, type SnakeCollisionEffect } from "./snakeCanvas";
 import { computeSnakeCellSize } from "./snakeCanvas";
+import type { BoardTheme, FaceStyle } from "./settings";
+import { BOARD_THEMES } from "./settings";
 import styles from "./Snake.module.css";
 import type { Direction, GridCell, SnakeDeathCause } from "./types";
 
@@ -55,6 +57,8 @@ export interface SnakeGameInputProps {
   // have no ControlScheme entry -- keyed separately so a color source
   // doesn't have to be a controllable player.
   colorByPlayerId: Record<string, string>;
+  faceByPlayerId?: Record<string, FaceStyle>;
+  boardTheme?: BoardTheme;
   sendDirection: (playerId: string, dir: Direction) => void;
   statusText: string;
 }
@@ -65,6 +69,8 @@ export function SnakeGameInput({
   players,
   controlSchemes,
   colorByPlayerId,
+  faceByPlayerId,
+  boardTheme = BOARD_THEMES[0],
   sendDirection,
   statusText,
 }: SnakeGameInputProps) {
@@ -89,9 +95,10 @@ export function SnakeGameInput({
       key: p.id,
       body: p.body,
       color: colorByPlayerId[p.id] ?? "#38bdf8",
+      face: faceByPlayerId?.[p.id],
     }));
 
-  useSnakeBoardRenderer(canvasRef, grid, cellSize, snakes, foods, null, collisionEffectsRef);
+  useSnakeBoardRenderer(canvasRef, grid, cellSize, snakes, foods, null, collisionEffectsRef, boardTheme);
 
   const latestRef = useRef({ aliveByPlayerId, sendDirection });
   latestRef.current = { aliveByPlayerId, sendDirection };

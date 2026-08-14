@@ -9,7 +9,15 @@ import {
   type SnakeGameState,
 } from "./engine";
 import { SnakeGameInput, type ControlScheme } from "./SnakeGameInput";
-import { PLAYER_COLOR, BOT_COLOR } from "./snakeCanvas";
+import { SettingsScreen } from "./SettingsScreen";
+import {
+  boardThemeById,
+  loadSettings,
+  saveSettings,
+  settingsToGameConfig,
+  type FaceStyle,
+  type SnakeSettings,
+} from "./settings";
 import styles from "./Snake.module.css";
 import type { Direction, GameMode } from "./types";
 
@@ -26,15 +34,15 @@ const BOTH: Record<Direction, string[]> = {
   right: ["d", "ArrowRight"],
 };
 
-function controlSchemesForMode(mode: GameMode): ControlScheme[] {
+function controlSchemesForMode(mode: GameMode, settings: SnakeSettings): ControlScheme[] {
   if (mode === "local2p") {
     return [
-      { playerId: "p1", label: "Player 1", color: PLAYER_COLOR, keysLabel: "WASD", keys: WASD },
-      { playerId: "p2", label: "Player 2", color: BOT_COLOR, keysLabel: "Arrow Keys", keys: ARROWS },
+      { playerId: "p1", label: "Player 1", color: settings.p1.color, keysLabel: "WASD", keys: WASD },
+      { playerId: "p2", label: "Player 2", color: settings.p2.color, keysLabel: "Arrow Keys", keys: ARROWS },
     ];
   }
   const soloId = mode === "vsBot" ? "player" : "p1";
-  return [{ playerId: soloId, label: "You", color: PLAYER_COLOR, keysLabel: "Arrows / WASD", keys: BOTH }];
+  return [{ playerId: soloId, label: "You", color: settings.p1.color, keysLabel: "Arrows / WASD", keys: BOTH }];
 }
 
 // Describes who controls what for a mode, including non-human entries (the
@@ -46,24 +54,30 @@ interface ControlSummaryEntry {
   text: string;
 }
 
-function controlSummaryForMode(mode: GameMode): ControlSummaryEntry[] {
-  if (mode === "solo") return [{ label: "You", color: PLAYER_COLOR, text: "Arrows or WASD" }];
+function controlSummaryForMode(mode: GameMode, settings: SnakeSettings): ControlSummaryEntry[] {
+  if (mode === "solo") return [{ label: "You", color: settings.p1.color, text: "Arrows or WASD" }];
   if (mode === "vsBot") {
     return [
-      { label: "You", color: PLAYER_COLOR, text: "Arrows or WASD" },
-      { label: "Bot", color: BOT_COLOR, text: "CPU controlled" },
+      { label: "You", color: settings.p1.color, text: "Arrows or WASD" },
+      { label: "Bot", color: settings.p2.color, text: "CPU controlled" },
     ];
   }
   return [
-    { label: "Player 1", color: PLAYER_COLOR, text: "WASD" },
-    { label: "Player 2", color: BOT_COLOR, text: "Arrow Keys" },
+    { label: "Player 1", color: settings.p1.color, text: "WASD" },
+    { label: "Player 2", color: settings.p2.color, text: "Arrow Keys" },
   ];
 }
 
-function colorsForMode(mode: GameMode): Record<string, string> {
-  if (mode === "solo") return { p1: PLAYER_COLOR };
-  if (mode === "vsBot") return { player: PLAYER_COLOR, bot: BOT_COLOR };
-  return { p1: PLAYER_COLOR, p2: BOT_COLOR };
+function colorsForMode(mode: GameMode, settings: SnakeSettings): Record<string, string> {
+  if (mode === "solo") return { p1: settings.p1.color };
+  if (mode === "vsBot") return { player: settings.p1.color, bot: settings.p2.color };
+  return { p1: settings.p1.color, p2: settings.p2.color };
+}
+
+function facesForMode(mode: GameMode, settings: SnakeSettings): Record<string, FaceStyle> {
+  if (mode === "solo") return { p1: settings.p1.face };
+  if (mode === "vsBot") return { player: settings.p1.face, bot: settings.p2.face };
+  return { p1: settings.p1.face, p2: settings.p2.face };
 }
 
 function displayName(mode: GameMode, id: string): string {
@@ -79,11 +93,14 @@ const MODE_OPTIONS: { mode: GameMode; label: string; blurb: string }[] = [
 ];
 
 type Phase = "menu" | "countdown" | "playing";
+type MenuView = "modes" | "settings";
 
 export function SnakeWidget() {
   const [mode, setMode] = useState<GameMode>("vsBot");
   const [phase, setPhase] = useState<Phase>("menu");
-  const [game, setGame] = useState<SnakeGameState>(() => createSnakeGame("vsBot"));
+  const [menuView, setMenuView] = useState<MenuView>("modes");
+  const [settings, setSettings] = useState<SnakeSettings>(() => loadSettings());
+  const [game, setGame] = useState<SnakeGameState>(() => createSnakeGame("vsBot", settingsToGameConfig(loadSettings())));
   const [score, setScore] = useState<Record<string, number>>({});
   const [resultText, setResultText] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
@@ -95,8 +112,15 @@ export function SnakeWidget() {
   const roundOverRef = useRef(false);
   const phaseRef = useRef<Phase>(phase);
   phaseRef.current = phase;
-  const controlSchemes = useMemo(() => controlSchemesForMode(mode), [mode]);
-  const colorByPlayerId = useMemo(() => colorsForMode(mode), [mode]);
+  const controlSchemes = useMemo(() => controlSchemesForMode(mode, settings), [mode, settings]);
+  const colorByPlayerId = useMemo(() => colorsForMode(mode, settings), [mode, settings]);
+  const faceByPlayerId = useMemo(() => facesForMode(mode, settings), [mode, settings]);
+  const boardTheme = useMemo(() => boardThemeById(settings.boardThemeId), [settings.boardThemeId]);
+
+  function updateSettings(next: SnakeSettings) {
+    setSettings(next);
+    saveSettings(next);
+  }
 
   useEffect(() => {
     if (phase !== "playing") return;
@@ -159,7 +183,7 @@ export function SnakeWidget() {
   }
 
   function startMode(next: GameMode) {
-    const fresh = createSnakeGame(next);
+    const fresh = createSnakeGame(next, settingsToGameConfig(settings));
     gameRef.current = fresh;
     roundOverRef.current = false;
     setMode(next);
@@ -208,6 +232,8 @@ export function SnakeWidget() {
           players={game.players}
           controlSchemes={controlSchemes}
           colorByPlayerId={colorByPlayerId}
+          faceByPlayerId={faceByPlayerId}
+          boardTheme={boardTheme}
           sendDirection={handleDirection}
           statusText={phase === "menu" ? "" : statusText}
         />
@@ -216,8 +242,21 @@ export function SnakeWidget() {
             <div className={styles.countdownNum}>{countdown > 0 ? countdown : "Go!"}</div>
           </div>
         )}
-        {phase === "menu" && (
+        {phase === "menu" && menuView === "settings" && (
           <div className={`${styles.overlay} ${styles.menuOverlay}`}>
+            <SettingsScreen settings={settings} onChange={updateSettings} onBack={() => setMenuView("modes")} />
+          </div>
+        )}
+        {phase === "menu" && menuView === "modes" && (
+          <div className={`${styles.overlay} ${styles.menuOverlay}`}>
+            <button
+              type="button"
+              className={styles.cornerBtn}
+              onClick={() => setMenuView("settings")}
+              aria-label="Settings"
+            >
+              <GearIcon />
+            </button>
             <h2 className={styles.menuTitle}>{resultText ?? "Snake Duel"}</h2>
             <div className={styles.menu}>
               {MODE_OPTIONS.map((opt) => (
@@ -230,7 +269,7 @@ export function SnakeWidget() {
                   <span className={styles.menuBtnLabel}>{opt.label}</span>
                   <span className={styles.menuBtnBlurb}>{opt.blurb}</span>
                   <span className={styles.controlLegend}>
-                    {controlSummaryForMode(opt.mode).map((entry) => (
+                    {controlSummaryForMode(opt.mode, settings).map((entry) => (
                       <span key={entry.label} className={styles.controlLegendItem}>
                         <span className={styles.controlSwatch} style={{ background: entry.color }} />
                         {entry.label}: {entry.text}
@@ -244,5 +283,14 @@ export function SnakeWidget() {
         )}
       </div>
     </div>
+  );
+}
+
+function GearIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
   );
 }
