@@ -10,8 +10,8 @@ import { drawGlowCircle } from "./canvasFx";
 import type { GridCell, SnakeDeathCause } from "./types";
 
 export const PLAYER_COLOR = "#38bdf8";
-export const BOT_COLOR = "#f59e0b";
-export const SPERM_COLOR = "#ffe8ec";
+export const BOT_COLOR = "#f50b0b";
+export const EYE_COLOR = "#ffe8ec";
 export const SNAKE_FOOD_COLOR = "rgb(255, 133, 157)";
 export const SNAKE_TAPER_RATIO = 0.4;
 
@@ -71,7 +71,7 @@ function drawBody(
   ctx.shadowBlur = cellSize * 0.2;
   ctx.shadowOffsetX = cellSize * 0.06;
   ctx.shadowOffsetY = cellSize * 0.08;
-  ctx.fillStyle = SPERM_COLOR;
+  ctx.fillStyle = color;
 
   const drawTaperedSegment = (
     a: { x: number; y: number },
@@ -197,7 +197,7 @@ function drawBody(
   const perpX = -dy * across;
   const perpY = dx * across;
   const eyeR = cellSize * 0.1;
-  ctx.fillStyle = color;
+  ctx.fillStyle = EYE_COLOR;
   [1, -1].forEach((side) => {
     ctx.beginPath();
     ctx.arc(head.x + dx * along + perpX * side, head.y + dy * along + perpY * side, eyeR, 0, Math.PI * 2);
@@ -206,7 +206,7 @@ function drawBody(
 
   if (n > 1) {
     ctx.shadowColor = "transparent";
-    ctx.fillStyle = SPERM_COLOR;
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(centers[n - 1].x, centers[n - 1].y, tailRadius, 0, Math.PI * 2);
     ctx.fill();

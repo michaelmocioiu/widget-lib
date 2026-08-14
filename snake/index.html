@@ -27,12 +27,30 @@
   </head>
   <body>
     <h1>Snake Duel</h1>
+    <h2>Live source (vite dev, hot-reloads on save)</h2>
     <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+
+    <h2>Built bundle (run `npm run build` first, then reload)</h2>
+    <p>
+      Same mount() contract a host page would use, loaded from the local
+      <code>dist/</code> output over this same dev server -- no network, no
+      GitHub Pages deploy needed to check the production bundle actually works.
+    </p>
+    <div id="dist-widget"></div>
+    <script src="/dist/snake.js"></script>
+    <script>
+      if (window.SnakeDuel?.mount) {
+        window.SnakeDuel.mount(document.getElementById("dist-widget"));
+      } else {
+        console.error("SnakeDuel did not load -- run `npm run build` in this folder first.");
+      }
+    </script>
 
     <h2>Embed elsewhere</h2>
     <p>
-      Once built and deployed via GitHub Pages, embed this widget on any page
-      with:
+      Once this repo has a GitHub Pages deploy set up, embed this widget on
+      any page with:
     </p>
     <pre><code>&lt;div id="snake-widget"&gt;&lt;/div&gt;
 &lt;script src="https://michaelmocioiu.github.io/widget-lib/snake/dist/snake.js"&gt;&lt;/script&gt;
@@ -43,16 +61,5 @@
     console.error("SnakeDuel did not load. Check script URL and deploy path.");
   }
 &lt;/script&gt;</code></pre>
-
-    <script type="module" src="/src/main.tsx"></script>
-    <div id="my-widget"></div>
-    <script src="https://michaelmocioiu.github.io/widget-lib/snake/dist/snake.js"></script>
-    <script>
-      if (window.SnakeDuel?.mount) {
-        window.SnakeDuel.mount(document.getElementById("my-widget"));
-      } else {
-        console.error("SnakeDuel did not load. Check script URL and deploy path.");
-      }
-    </script>
   </body>
 </html>

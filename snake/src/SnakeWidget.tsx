@@ -26,21 +26,24 @@ export function SnakeWidget() {
   useEffect(() => {
     const interval = setInterval(() => {
       if (roundOverRef.current) return;
-      const g = gameRef.current;
+      const prev = gameRef.current;
+      // stepSnakeGame mutates each player's `body` array in place
+      // (unshift/pop). The real server gets away with this because the
+      // socket payload is a fresh JSON-parsed array every tick, but here
+      // there's no serialization step -- `prev.players[i].body` is the very
+      // same array reference SnakeChainTracker cached as `currByKey` on the
+      // last render. Cloning it AFTER stepping (as before) is too late: the
+      // in-place mutation already corrupts that cached snapshot before the
+      // tracker ever compares old vs. new, so headMoved is always false and
+      // interpolation never advances. Clone first, then step the clone.
+      const g = { ...prev, players: prev.players.map((p) => ({ ...p, body: [...p.body] })), foods: [...prev.foods] };
 
       const botDir = computeBotDirection(g);
       if (botDir) queueDirection(g, "bot", botDir);
 
       stepSnakeGame(g);
       const finished = checkWinCondition(g);
-      // stepSnakeGame mutates each player's `body` array in place
-      // (unshift/pop) -- the real server gets away with this because the
-      // socket payload is a fresh JSON-parsed array every tick, but here
-      // there's no serialization step, so `body` must be cloned per tick or
-      // SnakeChainTracker's prev/curr snapshots end up pointing at the same
-      // (already-mutated) array and tick interpolation collapses to an
-      // instant snap instead of a glide.
-      setGame({ ...g, players: g.players.map((p) => ({ ...p, body: [...p.body] })), foods: [...g.foods] });
+      setGame(g);
 
       if (finished) {
         roundOverRef.current = true;
