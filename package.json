@@ -1,6 +1,7 @@
 {
   "name": "widget-lib",
   "private": true,
+  "author": "Michael Benjamin Mocioiu",
   "workspaces": [
     "*"
   ]

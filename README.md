@@ -1,5 +1,7 @@
 # widget-lib
 
+By Michael Benjamin Mocioiu.
+
 A shared home for small, standalone, embeddable web widgets — games and
 non-games alike. Hosted via GitHub Pages: one gallery landing page listing
 every widget, plus each widget's built assets served directly so any other
@@ -25,6 +27,10 @@ own `src/`, copied in rather than shared via the workspace, so every widget
 stays independently buildable, embeddable, and versionable. The workspace
 only shares the *install* (one root `node_modules`, deduped across every
 widget's React/Vite/TypeScript deps) — it does not share a build graph.
+
+`template/index.html` is the starting point for a new widget's page — copy
+it into the new widget folder and fill in the `__WIDGET_TITLE__`,
+`__WIDGET_NAME__`, and `__GLOBAL_NAME__` placeholders.
 
 ## Mount contract
 

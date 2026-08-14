@@ -2,6 +2,7 @@
   "name": "snake-widget",
   "private": true,
   "version": "1.0.0",
+  "author": "Michael Benjamin Mocioiu",
   "type": "module",
   "scripts": {
     "dev": "vite",

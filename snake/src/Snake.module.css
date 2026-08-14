@@ -115,6 +115,14 @@
   color: #eee;
 }
 
+.menuSubtitle {
+  align-self: center;
+  margin: -0.25rem 0 0.5rem;
+  text-align: center;
+  color: #ccc;
+  font-size: 1rem;
+}
+
 .menuBtn {
   display: flex;
   flex-direction: column;
@@ -249,11 +257,6 @@
   flex: 1;
   font-size: 0.9rem;
   color: #eee;
-}
-
-.settingsHint {
-  font-size: 0.8rem;
-  color: #aaa;
 }
 
 .stepper {

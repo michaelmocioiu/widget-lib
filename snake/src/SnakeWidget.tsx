@@ -150,9 +150,9 @@ export function SnakeWidget() {
         setTimeout(() => {
           let outcome: string;
           if (g.winnerId) {
-            outcome = `${displayName(mode, g.winnerId)} wins!`;
+            outcome = `${displayName(mode, g.winnerId)} Won!`;
           } else {
-            outcome = mode === "solo" ? "Game over" : "Draw!";
+            outcome = mode === "solo" ? "Game Over" : "Draw!";
           }
           setResultText(outcome);
           setPhase("menu");
@@ -225,6 +225,7 @@ export function SnakeWidget() {
               <GearIcon />
             </button>
             <h2 className={styles.menuTitle}>{resultText ?? "Snake Duel"}</h2>
+            {resultText && <p className={styles.menuSubtitle}>Play again?</p>}
             <div className={styles.menu}>
               {MODE_OPTIONS.map((opt) => (
                 <button

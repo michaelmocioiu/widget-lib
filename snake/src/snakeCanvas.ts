@@ -50,6 +50,7 @@ function drawBody(
   gridH: number,
   t: number,
   face: FaceStyle = "classic",
+  alive: boolean = true,
 ) {
   if (body.length === 0) return;
 
@@ -205,7 +206,23 @@ function drawBody(
   const pupilR = eyeR * 0.45;
   const pupilAlong = eyeR * 0.4;
 
-  if (face === "sleepy") {
+  if (!alive) {
+    // Dead: X eyes regardless of face style.
+    [1, -1].forEach((side) => {
+      const eyeX = head.x + dx * along + perpX * side;
+      const eyeY = head.y + dy * along + perpY * side;
+      const r = eyeR * 0.95;
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = Math.max(1.5, eyeR * 0.6);
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(eyeX - r, eyeY - r);
+      ctx.lineTo(eyeX + r, eyeY + r);
+      ctx.moveTo(eyeX - r, eyeY + r);
+      ctx.lineTo(eyeX + r, eyeY - r);
+      ctx.stroke();
+    });
+  } else if (face === "sleepy") {
     // Half-closed: a flat lash line (perpendicular to travel) over a small pupil, no eye white.
     const lidHalf = eyeR * 1.1;
     const lidDx = -dy;
@@ -226,38 +243,33 @@ function drawBody(
       ctx.arc(eyeX + dx * pupilAlong * 0.6, eyeY + dy * pupilAlong * 0.6, pupilR * 0.8, 0, Math.PI * 2);
       ctx.fill();
     });
-  } else if (face === "angry") {
+  } else if (face === "wink") {
+    // One eye closed (a flat lash line), the other open with a pupil.
+    const lidHalf = eyeR * 1.1;
+    const lidDx = -dy;
+    const lidDy = dx;
     [1, -1].forEach((side) => {
       const eyeX = head.x + dx * along + perpX * side;
       const eyeY = head.y + dy * along + perpY * side;
-      ctx.fillStyle = EYE_COLOR;
-      ctx.beginPath();
-      ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2);
-      ctx.fill();
+      if (side === 1) {
+        ctx.strokeStyle = EYE_COLOR;
+        ctx.lineWidth = Math.max(1.2, eyeR * 0.4);
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(eyeX - lidDx * lidHalf, eyeY - lidDy * lidHalf);
+        ctx.lineTo(eyeX + lidDx * lidHalf, eyeY + lidDy * lidHalf);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = EYE_COLOR;
+        ctx.beginPath();
+        ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2);
+        ctx.fill();
 
-      ctx.fillStyle = "#000";
-      ctx.beginPath();
-      ctx.arc(eyeX + dx * pupilAlong, eyeY + dy * pupilAlong, pupilR, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Brow: a short dark bar set outward from the eye (away from the
-      // head's centerline, clear of the eye's radius) so it reads as
-      // sitting above the eye instead of cutting through it, tilted
-      // forward to read as an angry V shape between the two eyes.
-      const perpUnitX = -dy;
-      const perpUnitY = dx;
-      const browOutset = eyeR * 1.8;
-      const browHalf = eyeR * 0.7;
-      const browTilt = eyeR * 0.7;
-      const browX = eyeX + perpUnitX * side * browOutset;
-      const browY = eyeY + perpUnitY * side * browOutset;
-      ctx.strokeStyle = "#000";
-      ctx.lineWidth = Math.max(1.2, eyeR * 0.5);
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(browX + perpUnitX * side * browHalf - dx * browTilt, browY + perpUnitY * side * browHalf - dy * browTilt);
-      ctx.lineTo(browX - perpUnitX * side * browHalf + dx * browTilt, browY - perpUnitY * side * browHalf + dy * browTilt);
-      ctx.stroke();
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.arc(eyeX + dx * pupilAlong, eyeY + dy * pupilAlong, pupilR, 0, Math.PI * 2);
+        ctx.fill();
+      }
     });
   } else {
     [1, -1].forEach((side) => {
@@ -386,6 +398,7 @@ export interface SnakeBoardEntry {
   body: GridCell[];
   color: string;
   face?: FaceStyle;
+  alive?: boolean;
 }
 
 export function paintCheckeredPattern(ctx: CanvasRenderingContext2D, cellSize: number, theme: BoardTheme) {
@@ -430,7 +443,7 @@ export function drawSnakeBoard(
 
   foods.forEach((f) => drawFood(ctx, f, cellSize));
   snakes.forEach((s) =>
-    drawBody(ctx, s.body, breaksByKey.get(s.key) ?? [], s.color, cellSize, grid.w, grid.h, t, s.face ?? "classic"),
+    drawBody(ctx, s.body, breaksByKey.get(s.key) ?? [], s.color, cellSize, grid.w, grid.h, t, s.face ?? "classic", s.alive ?? true),
   );
   collisionEffects.forEach((fx) => {
     const c = cellCenter(fx.cell, cellSize);
@@ -516,9 +529,10 @@ export function useSnakeBoardRenderer(
 
   const colorByKey = new Map(snakes.map((s) => [s.key, s.color]));
   const faceByKey = new Map(snakes.map((s) => [s.key, s.face ?? "classic"]));
+  const aliveByKey = new Map(snakes.map((s) => [s.key, s.alive ?? true]));
   const keys = snakes.map((s) => s.key);
-  const latestRef = useRef({ grid, cellSize, foods, colorByKey, faceByKey, keys, theme, tickMs });
-  latestRef.current = { grid, cellSize, foods, colorByKey, faceByKey, keys, theme, tickMs };
+  const latestRef = useRef({ grid, cellSize, foods, colorByKey, faceByKey, aliveByKey, keys, theme, tickMs });
+  latestRef.current = { grid, cellSize, foods, colorByKey, faceByKey, aliveByKey, keys, theme, tickMs };
 
   useEffect(() => {
     let rafId: number;
@@ -534,6 +548,7 @@ export function useSnakeBoardRenderer(
           body: override?.key === key ? override.cells : (sampledBodies.get(key) ?? []),
           color: s.colorByKey.get(key) || PLAYER_COLOR,
           face: s.faceByKey.get(key),
+          alive: s.aliveByKey.get(key) ?? true,
         }));
         const breaksByKey = new Map(sampled.map((entry) => [entry.key, computeBodyBreaks(entry.body)]));
         const now = performance.now();

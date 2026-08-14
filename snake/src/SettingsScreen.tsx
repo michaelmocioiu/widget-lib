@@ -72,27 +72,33 @@ function Stepper({ label, value, onChange }: { label: string; value: number; onC
 function PlayerColumn({
   label,
   appearance,
+  otherColor,
   onChange,
 }: {
   label: string;
   appearance: PlayerAppearance;
+  otherColor: string;
   onChange: (next: PlayerAppearance) => void;
 }) {
   return (
     <div className={styles.playerColumn}>
       <div className={styles.playerColumnLabel}>{label}</div>
       <div className={styles.swatchRow}>
-        {COLOR_SWATCHES.map((sw) => (
-          <button
-            key={sw.id}
-            type="button"
-            className={`${styles.swatchBtn} ${appearance.color === sw.color ? styles.swatchBtnActive : ""}`}
-            style={{ background: sw.color }}
-            aria-label={sw.id}
-            aria-pressed={appearance.color === sw.color}
-            onClick={() => onChange({ ...appearance, color: sw.color })}
-          />
-        ))}
+        {COLOR_SWATCHES.map((sw) => {
+          const takenByOther = sw.color === otherColor;
+          return (
+            <button
+              key={sw.id}
+              type="button"
+              className={`${styles.swatchBtn} ${appearance.color === sw.color ? styles.swatchBtnActive : ""}`}
+              style={{ background: sw.color, opacity: takenByOther ? 0.3 : 1 }}
+              aria-label={sw.id}
+              aria-pressed={appearance.color === sw.color}
+              disabled={takenByOther}
+              onClick={() => onChange({ ...appearance, color: sw.color })}
+            />
+          );
+        })}
       </div>
       <div className={styles.faceRow}>
         {FACE_OPTIONS.map((f) => (
@@ -158,15 +164,24 @@ export function SettingsScreen({ settings, onChange, onBack }: SettingsScreenPro
             >
               <span className={styles.toggleThumb} />
             </button>
-            <span className={styles.settingsHint}>{settings.edgeWrapping ? "On" : "Off (walls kill)"}</span>
           </div>
         </section>
 
         <section className={styles.settingsSection}>
           <h3 className={styles.settingsSectionTitle}>Player settings</h3>
           <div className={styles.playerColumns}>
-            <PlayerColumn label="Player 1" appearance={settings.p1} onChange={(p1) => onChange({ ...settings, p1 })} />
-            <PlayerColumn label="Player 2" appearance={settings.p2} onChange={(p2) => onChange({ ...settings, p2 })} />
+            <PlayerColumn
+              label="Player 1"
+              appearance={settings.p1}
+              otherColor={settings.p2.color}
+              onChange={(p1) => onChange({ ...settings, p1 })}
+            />
+            <PlayerColumn
+              label="Player 2"
+              appearance={settings.p2}
+              otherColor={settings.p1.color}
+              onChange={(p2) => onChange({ ...settings, p2 })}
+            />
           </div>
         </section>
 

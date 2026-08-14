@@ -2,7 +2,7 @@
 // settings screen and persisted to localStorage so choices survive a reload.
 import type { SnakeGameConfig } from "./engine";
 
-export type FaceStyle = "classic" | "sleepy" | "angry";
+export type FaceStyle = "classic" | "sleepy" | "wink";
 
 export interface PlayerAppearance {
   color: string;
@@ -43,7 +43,7 @@ export interface FaceOption {
 export const FACE_OPTIONS: FaceOption[] = [
   { id: "classic", label: "Classic" },
   { id: "sleepy", label: "Sleepy" },
-  { id: "angry", label: "Angry" },
+  { id: "wink", label: "Wink" },
 ];
 
 export interface SpeedOption {
@@ -73,9 +73,9 @@ export const BOARD_THEMES: BoardTheme[] = [
 ];
 
 export const DEFAULT_SETTINGS: SnakeSettings = {
-  segmentsPerDot: 3,
-  foodCount: 2,
-  edgeWrapping: true,
+  segmentsPerDot: 1,
+  foodCount: 1,
+  edgeWrapping: false,
   speed: "medium",
   p1: { color: COLOR_SWATCHES[0].color, face: "classic" },
   p2: { color: COLOR_SWATCHES[1].color, face: "classic" },

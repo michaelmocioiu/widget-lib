@@ -90,14 +90,13 @@ export function SnakeGameInput({
   const dpadScheme = controlSchemes.length === 1 ? controlSchemes[0] : null;
   const canAct = dpadScheme ? (aliveByPlayerId.get(dpadScheme.playerId) ?? false) : false;
 
-  const snakes = players
-    .filter((p) => p.alive)
-    .map((p) => ({
-      key: p.id,
-      body: p.body,
-      color: colorByPlayerId[p.id] ?? "#38bdf8",
-      face: faceByPlayerId?.[p.id],
-    }));
+  const snakes = players.map((p) => ({
+    key: p.id,
+    body: p.body,
+    color: colorByPlayerId[p.id] ?? "#38bdf8",
+    face: faceByPlayerId?.[p.id],
+    alive: p.alive,
+  }));
 
   useSnakeBoardRenderer(canvasRef, grid, cellSize, snakes, foods, null, collisionEffectsRef, boardTheme, tickMs ?? TICK_MS);
 
