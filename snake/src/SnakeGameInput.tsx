@@ -60,7 +60,6 @@ export interface SnakeGameInputProps {
   faceByPlayerId?: Record<string, FaceStyle>;
   boardTheme?: BoardTheme;
   sendDirection: (playerId: string, dir: Direction) => void;
-  statusText: string;
 }
 
 export function SnakeGameInput({
@@ -72,7 +71,6 @@ export function SnakeGameInput({
   faceByPlayerId,
   boardTheme = BOARD_THEMES[0],
   sendDirection,
-  statusText,
 }: SnakeGameInputProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -186,17 +184,6 @@ export function SnakeGameInput({
         height={grid.h * cellSize}
         className={styles.canvas}
       />
-      <div className={styles.statusLabel}>{statusText}</div>
-      {controlSchemes.length > 1 && (
-        <div className={styles.controlLegend}>
-          {controlSchemes.map((scheme) => (
-            <span key={scheme.playerId} className={styles.controlLegendItem}>
-              <span className={styles.controlSwatch} style={{ background: scheme.color }} />
-              {scheme.label}: {scheme.keysLabel}
-            </span>
-          ))}
-        </div>
-      )}
       {dpadScheme && (
         <div className={styles.dpad}>
           <button

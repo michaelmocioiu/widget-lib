@@ -101,7 +101,6 @@ export function SnakeWidget() {
   const [menuView, setMenuView] = useState<MenuView>("modes");
   const [settings, setSettings] = useState<SnakeSettings>(() => loadSettings());
   const [game, setGame] = useState<SnakeGameState>(() => createSnakeGame("vsBot", settingsToGameConfig(loadSettings())));
-  const [score, setScore] = useState<Record<string, number>>({});
   const [resultText, setResultText] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
   const gameRef = useRef<SnakeGameState>(game);
@@ -152,7 +151,6 @@ export function SnakeWidget() {
         setTimeout(() => {
           let outcome: string;
           if (g.winnerId) {
-            setScore((s) => ({ ...s, [g.winnerId as string]: (s[g.winnerId as string] ?? 0) + 1 }));
             outcome = `${displayName(mode, g.winnerId)} wins!`;
           } else {
             outcome = mode === "solo" ? "Game over" : "Draw!";
@@ -188,43 +186,13 @@ export function SnakeWidget() {
     roundOverRef.current = false;
     setMode(next);
     setGame(fresh);
-    setScore({});
     setResultText(null);
     setCountdown(COUNTDOWN_START);
     setPhase("countdown");
   }
 
-  const alivePlayers = game.players.filter((p) => p.alive);
-
-  let statusText: string;
-  if (phase === "menu") {
-    statusText = "Choose a mode to begin";
-  } else if (phase === "countdown") {
-    statusText = countdown > 0 ? String(countdown) : "Go!";
-  } else if (mode === "solo") {
-    statusText = "Go!";
-  } else if (alivePlayers.length === game.players.length) {
-    statusText = "Go!";
-  } else {
-    const stillAlive = alivePlayers[0];
-    statusText = stillAlive
-      ? `${displayName(mode, game.players.find((p) => !p.alive)!.id)} crashed -- waiting on ${displayName(mode, stillAlive.id)}...`
-      : "Go!";
-  }
-
   return (
     <div className={styles.wrap}>
-      <div className={styles.scoreRow}>
-        {phase === "menu" ? null : mode === "solo" ? (
-          <span>Length: {game.players[0].body.length}</span>
-        ) : (
-          game.players.map((p) => (
-            <span key={p.id}>
-              {displayName(mode, p.id)}: {score[p.id] ?? 0}
-            </span>
-          ))
-        )}
-      </div>
       <div className={styles.canvasWrap}>
         <SnakeGameInput
           grid={{ w: game.w, h: game.h }}
@@ -235,7 +203,6 @@ export function SnakeWidget() {
           faceByPlayerId={faceByPlayerId}
           boardTheme={boardTheme}
           sendDirection={handleDirection}
-          statusText={phase === "menu" ? "" : statusText}
         />
         {phase === "countdown" && (
           <div className={styles.overlay}>
