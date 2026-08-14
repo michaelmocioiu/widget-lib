@@ -7,7 +7,7 @@ site can embed one via a plain script tag:
 
 ```html
 <div id="my-widget"></div>
-<script src="https://michaelmocioiu.github.io/widget-lib/<name>/<name>.js"></script>
+<script src="https://michaelmocioiu.github.io/widget-lib/<name>/dist/<name>.js"></script>
 <script>
   window.<Name>.mount(document.getElementById("my-widget"));
 </script>

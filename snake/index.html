@@ -35,16 +35,24 @@
       with:
     </p>
     <pre><code>&lt;div id="snake-widget"&gt;&lt;/div&gt;
-&lt;script src="https://michaelmocioiu.github.io/widget-lib/snake/snake.js"&gt;&lt;/script&gt;
+&lt;script src="https://michaelmocioiu.github.io/widget-lib/snake/dist/snake.js"&gt;&lt;/script&gt;
 &lt;script&gt;
-  window.SnakeDuel.mount(document.getElementById("snake-widget"));
+  if (window.SnakeDuel?.mount) {
+    window.SnakeDuel.mount(document.getElementById("snake-widget"));
+  } else {
+    console.error("SnakeDuel did not load. Check script URL and deploy path.");
+  }
 &lt;/script&gt;</code></pre>
 
     <script type="module" src="/src/main.tsx"></script>
     <div id="my-widget"></div>
-    <script src="https://michaelmocioiu.github.io/widget-lib/snake/snake.js"></script>
+    <script src="https://michaelmocioiu.github.io/widget-lib/snake/dist/snake.js"></script>
     <script>
-      window.SnakeDuel.mount(document.getElementById("my-widget"));
+      if (window.SnakeDuel?.mount) {
+        window.SnakeDuel.mount(document.getElementById("my-widget"));
+      } else {
+        console.error("SnakeDuel did not load. Check script URL and deploy path.");
+      }
     </script>
   </body>
 </html>
