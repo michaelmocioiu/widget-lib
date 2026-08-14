@@ -225,7 +225,7 @@ export function SnakeWidget() {
               <GearIcon />
             </button>
             <h2 className={styles.menuTitle}>{resultText ?? "Snake Duel"}</h2>
-            {resultText && <p className={styles.menuSubtitle}>Play again?</p>}
+            <p className={styles.menuSubtitle}>{resultText ? "Play again?" : "By Michael Mocioiu"}</p>
             <div className={styles.menu}>
               {MODE_OPTIONS.map((opt) => (
                 <button
