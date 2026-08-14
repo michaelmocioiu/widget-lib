@@ -478,32 +478,7 @@ function drawStrawberry(ctx: CanvasRenderingContext2D, cx: number, cy: number, r
   ctx.fill();
 }
 
-function drawWatermelon(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
-  drawGlowCircle(ctx, cx, cy, r, "rgba(255, 60, 80, 0.35)", 5);
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.92, Math.PI, 0);
-  ctx.closePath();
-  ctx.fillStyle = "#2f8f3f";
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.78, Math.PI, 0);
-  ctx.closePath();
-  ctx.fillStyle = "#f5fbe0";
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.62, Math.PI, 0);
-  ctx.closePath();
-  ctx.fillStyle = "#e8264a";
-  ctx.fill();
-  ctx.fillStyle = "#2b2b2b";
-  for (let i = -2; i <= 2; i++) {
-    ctx.beginPath();
-    ctx.ellipse(cx + i * r * 0.18, cy - r * 0.14, r * 0.05, r * 0.08, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
-const FOOD_DRAWERS = [drawApple, drawCherries, drawOrange, drawGrapes, drawStrawberry, drawWatermelon];
+const FOOD_DRAWERS = [drawApple, drawCherries, drawOrange, drawGrapes, drawStrawberry];
 
 function drawFood(ctx: CanvasRenderingContext2D, cell: GridCell, cellSize: number) {
   const cx = cell.x * cellSize + cellSize / 2;
