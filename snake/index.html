@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Snake Duel Widget</title>
+    <style>
+      body {
+        background: #0b0d12;
+        color: #eee;
+        font-family: system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2rem;
+        padding: 2rem;
+      }
+      pre {
+        background: #14171e;
+        padding: 1rem;
+        border-radius: 8px;
+        max-width: 640px;
+        overflow-x: auto;
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Snake Duel</h1>
+    <div id="root"></div>
+
+    <h2>Embed elsewhere</h2>
+    <p>
+      Once built and deployed via GitHub Pages, embed this widget on any page
+      with:
+    </p>
+    <pre><code>&lt;div id="snake-widget"&gt;&lt;/div&gt;
+&lt;script src="https://&lt;user&gt;.github.io/widget-lib/snake/snake.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  window.NangameSnake.mount(document.getElementById("snake-widget"));
+&lt;/script&gt;</code></pre>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
