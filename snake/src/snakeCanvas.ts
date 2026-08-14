@@ -360,7 +360,7 @@ function drawFood(ctx: CanvasRenderingContext2D, cell: GridCell, cellSize: numbe
 }
 
 export const SNAKE_PREVIEW_LENGTH = 5;
-export const SNAKE_PREVIEW_CELL_SIZE = 16;
+export const SNAKE_PREVIEW_CELL_SIZE = 28;
 
 // Static mini rendering of a short rightward-facing snake for the settings
 // screen's player-color/face swatches -- reuses the same drawBody used for
