@@ -3,7 +3,7 @@ import type { RefObject } from "react";
 import type { CellValue, PieceType } from "./types";
 import type { TetrPlayerState } from "./engine";
 import { PIECE_SHAPES, GARBAGE_COLOR, PIECE_STYLES, type PieceStyle } from "./pieces";
-import { PIECE_OUTLINES, buildRoundedShapePath, fillHatchedPath, computeShapeOutline } from "./outline";
+import { PIECE_OUTLINES, buildRoundedShapePath, fillHatchedPath, computeShapeOutline, paintStyledShape } from "./outline";
 import styles from "./Tetr.module.css";
 
 interface TetrBoardCanvasProps {
@@ -17,17 +17,6 @@ interface TetrBoardCanvasProps {
   dim?: boolean;
   suppressLockRef?: RefObject<number>;
   pieceStyle?: PieceStyle;
-}
-
-// Lightens/darkens a "#rrggbb" hex color by `amt` (-1..1) for the bevel
-// piece style's light-to-dark gradient fill.
-function shadeColor(hex: string, amt: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  const clamp = (v: number) => Math.max(0, Math.min(255, v));
-  const r = clamp(((n >> 16) & 0xff) + Math.round(255 * amt));
-  const g = clamp(((n >> 8) & 0xff) + Math.round(255 * amt));
-  const b = clamp((n & 0xff) + Math.round(255 * amt));
-  return `rgb(${r}, ${g}, ${b})`;
 }
 
 type Grid = CellValue[][];
@@ -127,14 +116,6 @@ export function TetrBoardCanvas({
     const h = boardHeight * cellSize;
     const radius = pieceStyle.radiusFactor < 0.1 ? Math.max(0.5, cellSize * pieceStyle.radiusFactor) : Math.max(2, cellSize * pieceStyle.radiusFactor);
 
-    function shadedFill(color: string, bounds: { x: number; y: number; w: number; h: number }): string | CanvasGradient {
-      if (!pieceStyle.bevel) return color;
-      const grad = ctx!.createLinearGradient(bounds.x, bounds.y, bounds.x, bounds.y + bounds.h);
-      grad.addColorStop(0, shadeColor(color, 0.22));
-      grad.addColorStop(1, shadeColor(color, -0.18));
-      return grad;
-    }
-
     function boundsOfCells(cells: [number, number][]): { x: number; y: number; w: number; h: number } {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const [cx, cy] of cells) {
@@ -191,8 +172,7 @@ export function TetrBoardCanvas({
         const outline = computeShapeOutline(group.cells);
         const path = buildRoundedShapePath(outline, 0, 0, cellSize, radius);
         const color = group.value === "GARBAGE" ? GARBAGE_COLOR : pieceColors[group.value] || "#888";
-        ctx!.fillStyle = shadedFill(color, boundsOfCells(group.cells));
-        ctx!.fill(path);
+        paintStyledShape(ctx!, path, boundsOfCells(group.cells), color, pieceStyle.finish);
         ctx!.strokeStyle = BOARD_BG_COLOR;
         ctx!.lineWidth = pieceStyle.gapWidth;
         ctx!.stroke(path);
@@ -206,10 +186,7 @@ export function TetrBoardCanvas({
       const path = buildRoundedShapePath(outline, originX, originY, cellSize, radius);
       const cells = PIECE_SHAPES[type][rotation];
       const bounds = boundsOfCells(cells.map(([ox, oy]) => [gx + ox, gy - hiddenRows + oy] as [number, number]));
-      ctx!.globalAlpha = alpha;
-      ctx!.fillStyle = shadedFill(pieceColors[type] || "#888", bounds);
-      ctx!.fill(path);
-      ctx!.globalAlpha = 1;
+      paintStyledShape(ctx!, path, bounds, pieceColors[type] || "#888", pieceStyle.finish, alpha);
     }
 
     function drawGhostShape(type: PieceType, rotation: number, gx: number, gy: number) {

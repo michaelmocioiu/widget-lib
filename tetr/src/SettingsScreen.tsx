@@ -4,8 +4,12 @@ import {
   COLOR_PALETTES,
   PIECE_STYLES,
   SPEED_OPTIONS,
+  settingsToColors,
+  settingsToPieceStyle,
   type TetrSettings,
 } from "./settings";
+import { TetrPiecesPreview } from "./TetrPiecesPreview";
+import { PIECE_TYPES } from "./pieces";
 import styles from "./Tetr.module.css";
 
 export interface SettingsScreenProps {
@@ -15,6 +19,8 @@ export interface SettingsScreenProps {
 }
 
 export function SettingsScreen({ settings, onChange, onBack }: SettingsScreenProps) {
+  const colors = settingsToColors(settings);
+  const activePieceStyle = settingsToPieceStyle(settings);
   return (
     <div className={styles.settingsScreen}>
       <button type="button" className={styles.cornerBtn} onClick={onBack} aria-label="Back">
@@ -119,18 +125,15 @@ export function SettingsScreen({ settings, onChange, onBack }: SettingsScreenPro
                 aria-pressed={settings.pieceStyleId === style.id}
                 onClick={() => onChange({ ...settings, pieceStyleId: style.id })}
               >
-                <span
-                  className={styles.pieceStylePreview}
-                  style={{
-                    borderRadius: `${Math.round(style.radiusFactor * 40)}px`,
-                    background: style.bevel
-                      ? "linear-gradient(135deg, #5fe0d6, #1f7c76)"
-                      : "#31C7EF",
-                  }}
-                />
+                <span className={styles.pieceStyleSwatch}>
+                  <TetrPiecesPreview types={["T"]} pieceStyle={style} colors={colors} cellSize={13} />
+                </span>
                 <span className={styles.themeLabel}>{style.label}</span>
               </button>
             ))}
+          </div>
+          <div className={styles.pieceStylePreviewRow}>
+            <TetrPiecesPreview types={PIECE_TYPES} pieceStyle={activePieceStyle} colors={colors} cellSize={16} gap={10} />
           </div>
         </section>
       </div>

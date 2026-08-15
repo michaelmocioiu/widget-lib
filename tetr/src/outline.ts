@@ -129,6 +129,124 @@ export function buildRoundedShapePath(
   return path;
 }
 
+export type PieceFinish = "flat" | "bevel" | "glass" | "neon" | "gem";
+
+// Lightens/darkens a "#rrggbb" hex color by `amt` (-1..1).
+export function shadeColor(hex: string, amt: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const clamp = (v: number) => Math.max(0, Math.min(255, v));
+  const r = clamp(((n >> 16) & 0xff) + Math.round(255 * amt));
+  const g = clamp(((n >> 8) & 0xff) + Math.round(255 * amt));
+  const b = clamp((n & 0xff) + Math.round(255 * amt));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+interface PixelBounds {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+// Fills+decorates `path` (already positioned in pixel space, `bounds` its own
+// tight box) per finish, shared by real board rendering (TetrBoardCanvas) and
+// the settings/menu preview swatches so every finish only has one
+// implementation to keep in sync. Everything beyond the base fill is drawn
+// clipped to `path`, so it works for arbitrary connected-blob outlines, not
+// just single cells/pieces.
+export function paintStyledShape(
+  ctx: CanvasRenderingContext2D,
+  path: Path2D,
+  bounds: PixelBounds,
+  color: string,
+  finish: PieceFinish,
+  alpha = 1,
+) {
+  ctx.globalAlpha = alpha;
+  switch (finish) {
+    case "bevel": {
+      const grad = ctx.createLinearGradient(bounds.x, bounds.y, bounds.x, bounds.y + bounds.h);
+      grad.addColorStop(0, shadeColor(color, 0.35));
+      grad.addColorStop(0.5, color);
+      grad.addColorStop(1, shadeColor(color, -0.35));
+      ctx.fillStyle = grad;
+      ctx.fill(path);
+      ctx.save();
+      ctx.clip(path);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.38)";
+      ctx.fillRect(bounds.x, bounds.y, bounds.w, Math.max(1, bounds.h * 0.16));
+      ctx.fillStyle = "rgba(0, 0, 0, 0.32)";
+      ctx.fillRect(bounds.x, bounds.y + bounds.h * 0.82, bounds.w, bounds.h * 0.18);
+      ctx.restore();
+      break;
+    }
+    case "glass": {
+      const grad = ctx.createLinearGradient(bounds.x, bounds.y, bounds.x, bounds.y + bounds.h);
+      grad.addColorStop(0, shadeColor(color, 0.18));
+      grad.addColorStop(1, shadeColor(color, -0.12));
+      ctx.globalAlpha = alpha * 0.74;
+      ctx.fillStyle = grad;
+      ctx.fill(path);
+      ctx.globalAlpha = alpha;
+      ctx.save();
+      ctx.clip(path);
+      const streak = ctx.createLinearGradient(bounds.x, bounds.y, bounds.x + bounds.w * 0.55, bounds.y + bounds.h * 0.65);
+      streak.addColorStop(0, "rgba(255, 255, 255, 0.55)");
+      streak.addColorStop(0.55, "rgba(255, 255, 255, 0.08)");
+      streak.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.fillStyle = streak;
+      ctx.fillRect(bounds.x, bounds.y, bounds.w, bounds.h * 0.6);
+      ctx.restore();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+      ctx.stroke(path);
+      break;
+    }
+    case "neon": {
+      ctx.globalAlpha = alpha * 0.3;
+      ctx.fillStyle = shadeColor(color, -0.5);
+      ctx.fill(path);
+      ctx.globalAlpha = alpha;
+      ctx.save();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = Math.max(6, bounds.w * 0.22);
+      ctx.lineWidth = Math.max(1.5, bounds.w * 0.06);
+      ctx.strokeStyle = color;
+      ctx.stroke(path);
+      ctx.restore();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+      ctx.stroke(path);
+      break;
+    }
+    case "gem": {
+      const grad = ctx.createLinearGradient(bounds.x, bounds.y, bounds.x + bounds.w, bounds.y + bounds.h);
+      grad.addColorStop(0, shadeColor(color, 0.32));
+      grad.addColorStop(0.5, color);
+      grad.addColorStop(1, shadeColor(color, -0.38));
+      ctx.fillStyle = grad;
+      ctx.fill(path);
+      ctx.save();
+      ctx.clip(path);
+      ctx.beginPath();
+      ctx.moveTo(bounds.x, bounds.y);
+      ctx.lineTo(bounds.x + bounds.w * 0.55, bounds.y);
+      ctx.lineTo(bounds.x, bounds.y + bounds.h * 0.55);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(255, 255, 255, 0.42)";
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    default: {
+      ctx.fillStyle = color;
+      ctx.fill(path);
+      break;
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
 // Fills a diagonal dashed hatch pattern clipped to `path`, for the ghost
 // piece's interior. `bounds` is the shape's own pixel bounding box (a tight
 // box keeps the line count small instead of hatching the whole canvas).

@@ -2,6 +2,7 @@
 // their default render colors. Shared by both the simulation (engine.ts) and
 // the canvas renderer so the two never drift out of sync.
 import type { PieceType } from "./types";
+import type { PieceFinish } from "./outline";
 
 export const PIECE_TYPES: PieceType[] = ["I", "O", "T", "S", "Z", "J", "L"];
 
@@ -96,20 +97,24 @@ export function paletteById(id: string): ColorPalette {
 }
 
 // Alternate block-rendering designs -- radiusFactor/gapWidth feed
-// TetrBoardCanvas's corner-rounding and inter-block gap, `bevel` switches
-// solid fills for a light-to-dark gradient (a classic 3D-block look).
+// TetrBoardCanvas's corner-rounding and inter-block gap, `finish` picks the
+// fill/decoration treatment (see paintStyledShape in outline.ts), shared by
+// real gameplay rendering and the settings/menu preview swatches.
 export interface PieceStyle {
   id: string;
   label: string;
   radiusFactor: number;
   gapWidth: number;
-  bevel: boolean;
+  finish: PieceFinish;
 }
 
 export const PIECE_STYLES: PieceStyle[] = [
-  { id: "rounded", label: "Rounded", radiusFactor: 0.22, gapWidth: 1.5, bevel: false },
-  { id: "sharp", label: "Sharp", radiusFactor: 0.04, gapWidth: 1, bevel: false },
-  { id: "retro", label: "Retro", radiusFactor: 0.05, gapWidth: 1, bevel: true },
+  { id: "rounded", label: "Rounded", radiusFactor: 0.22, gapWidth: 1.5, finish: "flat" },
+  { id: "sharp", label: "Sharp", radiusFactor: 0.04, gapWidth: 1, finish: "flat" },
+  { id: "retro", label: "Retro", radiusFactor: 0.05, gapWidth: 1, finish: "bevel" },
+  { id: "glass", label: "Glass", radiusFactor: 0.26, gapWidth: 1.5, finish: "glass" },
+  { id: "neon", label: "Neon", radiusFactor: 0.16, gapWidth: 2, finish: "neon" },
+  { id: "gem", label: "Gem", radiusFactor: 0.18, gapWidth: 1.5, finish: "gem" },
 ];
 
 export function pieceStyleById(id: string): PieceStyle {

@@ -852,17 +852,38 @@
   color: #ccc;
 }
 
-.pieceStylePreview {
-  display: block;
+.pieceStyleSwatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 2.6rem;
-  height: 1.6rem;
+  height: 1.8rem;
+  border-radius: 6px;
+  background: #14151a;
   border: 2px solid rgba(255, 255, 255, 0.18);
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
-.themeBtnActive .pieceStylePreview {
+.themeBtnActive .pieceStyleSwatch {
   border-color: #38bdf8;
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+}
+
+.pieceStylePreviewRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.5rem;
+  margin-top: 0.15rem;
+  background: #14151a;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.pieceStylePreviewRow canvas {
+  display: block;
 }
 
 .controls {
