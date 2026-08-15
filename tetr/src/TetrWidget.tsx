@@ -72,26 +72,6 @@ function schemesForMode(mode: GameMode): TetrControlScheme[] {
   return [{ playerId: "player", label: "You", color: "#38bdf8", keysLabel: "Arrows or WASD", ...SOLO_SCHEME_KEYS }];
 }
 
-interface ControlSummaryEntry {
-  label: string;
-  color: string;
-  text: string;
-}
-
-function controlSummaryForMode(mode: GameMode): ControlSummaryEntry[] {
-  if (mode === "solo") return [{ label: "You", color: "#38bdf8", text: "Arrows or WASD, Space to drop" }];
-  if (mode === "vsBot") {
-    return [
-      { label: "You", color: "#38bdf8", text: "Arrows or WASD, Space to drop" },
-      { label: "Bot", color: "#f97316", text: "CPU controlled" },
-    ];
-  }
-  return [
-    { label: "Player 1", color: "#38bdf8", text: "WASD, Q/E rotate, Space drop" },
-    { label: "Player 2", color: "#f97316", text: "Arrows, ./  rotate, Enter drop" },
-  ];
-}
-
 function displayName(mode: GameMode, id: string): string {
   if (mode === "vsBot") {
     if (id === "player") return "You";
@@ -156,6 +136,31 @@ function pauseControlRows(scheme: TetrControlScheme): PauseControlRow[] {
   return rows;
 }
 
+// Shared by the pause panel and the menu's controls modal so the two never
+// drift out of sync -- same schemes, same rows, just different chrome
+// (pause adds Resume/Quit buttons + an Esc hint; the modal is closed by
+// clicking outside it instead).
+function ControlsColumns({ schemes }: { schemes: TetrControlScheme[] }) {
+  return (
+    <div className={styles.pauseColumns}>
+      {schemes.map((s) => (
+        <div key={s.playerId} className={styles.pauseColumn}>
+          <div className={styles.pauseColumnHeader}>
+            <span className={styles.controlSwatch} style={{ background: s.color }} />
+            {s.label}
+          </div>
+          {pauseControlRows(s).map((row) => (
+            <div key={row.label} className={styles.pauseRow}>
+              <span className={styles.pauseRowLabel}>{row.label}</span>
+              <span className={styles.pauseRowKeys}>{row.keys}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function resultTextFor(mode: GameMode, game: TetrGameState): string {
   if (mode === "solo") {
     const lines = game.players[0].linesClearedTotal;
@@ -174,6 +179,7 @@ export function TetrWidget() {
   const [mode, setMode] = useState<GameMode>("vsBot");
   const [phase, setPhase] = useState<Phase>("menu");
   const [menuView, setMenuView] = useState<MenuView>("modes");
+  const [helpOpen, setHelpOpen] = useState(false);
   const [settings, setSettings] = useState<TetrSettings>(() => loadSettings());
   const [game, setGame] = useState<TetrGameState>(() => {
     const initial = loadSettings();
@@ -243,6 +249,8 @@ export function TetrWidget() {
       } else if (phaseRef.current === "paused") {
         e.preventDefault();
         setPhase("playing");
+      } else if (phaseRef.current === "menu") {
+        setHelpOpen(false);
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -402,22 +410,7 @@ export function TetrWidget() {
             <div className={styles.overlay}>
               <div className={styles.pausePanel}>
                 <h3 className={styles.pauseTitle}>Paused</h3>
-                <div className={styles.pauseColumns}>
-                  {schemes.map((s) => (
-                    <div key={s.playerId} className={styles.pauseColumn}>
-                      <div className={styles.pauseColumnHeader}>
-                        <span className={styles.controlSwatch} style={{ background: s.color }} />
-                        {s.label}
-                      </div>
-                      {pauseControlRows(s).map((row) => (
-                        <div key={row.label} className={styles.pauseRow}>
-                          <span className={styles.pauseRowLabel}>{row.label}</span>
-                          <span className={styles.pauseRowKeys}>{row.keys}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
+                <ControlsColumns schemes={schemes} />
                 <div className={styles.pauseActions}>
                   <button type="button" className={styles.pauseBtnPrimary} onClick={resumeGame}>
                     Resume
@@ -444,9 +437,14 @@ export function TetrWidget() {
       )}
       {phase === "menu" && menuView === "modes" && (
         <div className={styles.menuScreen}>
-          <button type="button" className={styles.cornerBtn} onClick={() => setMenuView("settings")} aria-label="Settings">
-            <GearIcon />
-          </button>
+          <div className={styles.menuIconRow}>
+            <button type="button" className={styles.cornerBtn} onClick={() => setHelpOpen(true)} aria-label="Controls">
+              <HelpIcon />
+            </button>
+            <button type="button" className={styles.cornerBtn} onClick={() => setMenuView("settings")} aria-label="Settings">
+              <GearIcon />
+            </button>
+          </div>
           <h2 className={styles.menuTitle}>{resultText ?? "Tetr Versus"}</h2>
           <p className={styles.menuSubtitle}>{resultText ? "Play again?" : "By Michael Mocioiu"}</p>
           <div className={styles.menu}>
@@ -454,20 +452,35 @@ export function TetrWidget() {
               <button key={opt.mode} type="button" className={styles.menuBtn} onClick={() => startMode(opt.mode)}>
                 <span className={styles.menuBtnLabel}>{opt.label}</span>
                 <span className={styles.menuBtnBlurb}>{opt.blurb}</span>
-                <span className={styles.controlLegend}>
-                  {controlSummaryForMode(opt.mode).map((entry) => (
-                    <span key={entry.label} className={styles.controlLegendItem}>
-                      <span className={styles.controlSwatch} style={{ background: entry.color }} />
-                      {entry.label}: {entry.text}
-                    </span>
-                  ))}
-                </span>
               </button>
             ))}
           </div>
         </div>
       )}
+
+      {/* Same control-scheme reference as the pause panel, but reachable
+          from the menu (no active round to pause) and dismissed by
+          clicking the backdrop instead of Resume/Quit buttons. */}
+      {helpOpen && (
+        <div className={styles.overlay} onClick={() => setHelpOpen(false)}>
+          <div className={styles.pausePanel} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.pauseTitle}>Controls</h3>
+            <ControlsColumns schemes={schemes} />
+            <p className={styles.pauseHint}>Click outside to close</p>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function HelpIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
   );
 }
 

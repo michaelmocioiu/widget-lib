@@ -447,11 +447,6 @@
   color: #a6adba;
 }
 
-.menuBtn .controlLegend {
-  color: #dfe3ea;
-  opacity: 0.9;
-}
-
 .countdownNum {
   font-size: clamp(2.1rem, 7cqw, 4.9rem);
   font-weight: 800;
@@ -586,26 +581,24 @@
   color: #888;
 }
 
-.controlLegend {
-  display: flex;
-  gap: 1.25rem;
-  flex-wrap: wrap;
-  justify-content: center;
-  font-size: clamp(0.51rem, 1.7cqw, 1.19rem);
-  color: #ccc;
-}
-
-.controlLegendItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
 .controlSwatch {
   width: 0.7rem;
   height: 0.7rem;
   border-radius: 50%;
   display: inline-block;
+}
+
+.menuIconRow {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 2;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.menuIconRow .cornerBtn {
+  position: static;
 }
 
 .cornerBtn {
