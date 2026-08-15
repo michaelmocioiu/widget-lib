@@ -712,11 +712,12 @@
 .settingsRow {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
 }
 
 .settingsLabel {
-  flex: 1;
+  flex-shrink: 0;
   font-size: clamp(0.54rem, 1.8cqw, 1.26rem);
   color: #eee;
 }
@@ -725,7 +726,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 .faceBtn {
