@@ -74,24 +74,15 @@ export function SettingsScreen({ settings, onChange, onBack }: SettingsScreenPro
           </div>
           <div className={styles.settingsRow}>
             <span className={styles.settingsLabel}>Screen shake</span>
-            <div className={styles.faceRow}>
-              <button
-                type="button"
-                className={`${styles.faceBtn} ${settings.screenShake ? styles.faceBtnActive : ""}`}
-                aria-pressed={settings.screenShake}
-                onClick={() => onChange({ ...settings, screenShake: true })}
-              >
-                On
-              </button>
-              <button
-                type="button"
-                className={`${styles.faceBtn} ${!settings.screenShake ? styles.faceBtnActive : ""}`}
-                aria-pressed={!settings.screenShake}
-                onClick={() => onChange({ ...settings, screenShake: false })}
-              >
-                Off
-              </button>
-            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.screenShake}
+              className={`${styles.switchBtn} ${settings.screenShake ? styles.switchBtnOn : ""}`}
+              onClick={() => onChange({ ...settings, screenShake: !settings.screenShake })}
+            >
+              <span className={styles.switchThumb} />
+            </button>
           </div>
         </section>
 
