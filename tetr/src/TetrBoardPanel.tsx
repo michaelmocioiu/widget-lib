@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { TetrPlayerState } from "./engine";
+import type { PieceStyle } from "./pieces";
 import { TetrAnimatedBoard } from "./TetrAnimatedBoard";
 import { TetrHUD } from "./TetrHUD";
 import { useTetrKeyboardInput, type TetrControlActions, type TetrControlScheme } from "./useTetrKeyboardInput";
@@ -20,6 +21,7 @@ const EMPTY_SCHEME: TetrControlScheme = {
   rotateCw: [],
   rotateCcw: [],
   hold: [],
+  cycleTarget: [],
 };
 const NOOP_ACTIONS: TetrControlActions = {
   moveLeft: () => {},
@@ -30,13 +32,14 @@ const NOOP_ACTIONS: TetrControlActions = {
   rotateCw: () => {},
   rotateCcw: () => {},
   hold: () => {},
+  cycleTarget: () => {},
 };
 
 // Boards render at native resolution then get scaled to fit by
 // .boardCanvas's max-width/max-height -- these are the sizes that fill a
 // typical desktop window without ever needing to grow past native size.
 const SELF_CELL_SIZE = 30;
-const OPPONENT_CELL_SIZE = 16;
+const OPPONENT_CELL_SIZE = 12;
 
 interface TetrBoardPanelProps {
   board: TetrPlayerState;
@@ -50,6 +53,13 @@ interface TetrBoardPanelProps {
   enabled?: boolean;
   showTouchControls?: boolean;
   isOpponent?: boolean;
+  cellSize?: number;
+  targetName?: string;
+  isTargeted?: boolean;
+  pieceStyle?: PieceStyle;
+  showScore?: boolean;
+  cycleTargetHint?: string;
+  shakeEnabled?: boolean;
 }
 
 export function TetrBoardPanel({
@@ -64,6 +74,13 @@ export function TetrBoardPanel({
   enabled = false,
   showTouchControls = false,
   isOpponent = false,
+  cellSize,
+  targetName,
+  isTargeted = false,
+  pieceStyle,
+  showScore = false,
+  cycleTargetHint,
+  shakeEnabled = true,
 }: TetrBoardPanelProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
@@ -164,20 +181,36 @@ export function TetrBoardPanel({
   };
 
   return (
-    <div className={styles.boardColumn} ref={wrapRef}>
+    <div
+      className={`${styles.boardColumn} ${isOpponent ? styles.boardColumnOpponent : ""} ${isTargeted ? styles.boardColumnTargeted : ""}`}
+      ref={wrapRef}
+    >
+      {isOpponent && (
+        <div className={`${styles.boardName} ${isTargeted ? styles.boardNameTargeted : ""}`}>
+          {name}
+          {targetName && <span className={styles.boardNameTarget}> → {targetName}</span>}
+        </div>
+      )}
+      {!isOpponent && targetName && (
+        <div className={styles.selfTargetLabel}>
+          Targeting: {targetName}
+          {cycleTargetHint && <span className={styles.targetHint}> ({cycleTargetHint})</span>}
+        </div>
+      )}
       <TetrAnimatedBoard
         board={board}
         boardWidth={boardWidth}
         boardHeight={boardHeight}
         hiddenRows={hiddenRows}
         pieceColors={pieceColors}
-        cellSize={isOpponent ? OPPONENT_CELL_SIZE : SELF_CELL_SIZE}
+        cellSize={cellSize ?? (isOpponent ? OPPONENT_CELL_SIZE : SELF_CELL_SIZE)}
         showGhost={!isOpponent}
         dim={isOpponent && !board.alive}
         suppressLockRef={lastHoldAtRef}
+        pieceStyle={pieceStyle}
+        shakeEnabled={!isOpponent && shakeEnabled}
       />
-      {!isOpponent && <TetrHUD board={board} pieceColors={pieceColors} />}
-      {isOpponent && <div className={styles.boardName}>{name}</div>}
+      {!isOpponent && <TetrHUD board={board} pieceColors={pieceColors} showScore={showScore} />}
       {showTouchControls && actions && canAct && (
         <div className={styles.controls}>
           <button type="button" className={styles.ctrlBtn} onPointerDown={actions.moveLeft} aria-label="Left">◀</button>

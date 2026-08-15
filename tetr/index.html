@@ -46,7 +46,7 @@
       }
       header {
         width: 100%;
-        max-width: 640px;
+        max-width: 1100px;
         padding: 0.25rem 0;
       }
       header h1 {
@@ -56,11 +56,20 @@
       }
       section {
         width: 100%;
-        max-width: 640px;
+        max-width: 1100px;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 0.5rem;
+      }
+      /* section's align-items: center means a plain child div shrinks to
+         fit its own content instead of stretching to the section's width --
+         harmless for most demo content here, but the widget mount points
+         need the real available width so the widget can size itself off
+         of it (rather than off of its own content, which is circular). */
+      #root,
+      #tetr-widget {
+        width: 100%;
       }
       section > h2 {
         font-size: 0.95rem;

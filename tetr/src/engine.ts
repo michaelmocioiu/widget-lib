@@ -37,7 +37,28 @@ const GARBAGE_ALL_CLEAR_BONUS = 10;
 const GARBAGE_CANCEL = true;
 export const GARBAGE_WARNING_MS = 2000;
 
-const BOT_THINK_MS = 1400;
+export type BotDifficulty = "easy" | "medium" | "hard";
+
+// thinkMs: delay before the bot commits to a placement each piece (higher =
+// slower reactions). mistakeChance: probability it takes a randomly-worse
+// candidate placement instead of its best-scored one, so easy bots visibly
+// misplay. lookahead: hard bots also weigh the average of their next
+// piece's best placement on top of the immediate one.
+interface BotDifficultyConfig {
+  thinkMs: number;
+  mistakeChance: number;
+  lookahead: boolean;
+}
+
+const BOT_DIFFICULTY_CONFIG: Record<BotDifficulty, BotDifficultyConfig> = {
+  easy: { thinkMs: 2200, mistakeChance: 0.35, lookahead: false },
+  medium: { thinkMs: 1400, mistakeChance: 0.1, lookahead: false },
+  hard: { thinkMs: 850, mistakeChance: 0, lookahead: true },
+};
+
+const LINE_SCORE_BASE = [0, 100, 300, 500, 800];
+const SCORE_LINES_PER_LEVEL = 10;
+const SCORE_COMBO_STEP = 50;
 
 const SPAWN_X = Math.floor((BOARD_WIDTH - 4) / 2);
 // Several piece shapes' cell offsets don't reach row 1 (e.g. O/S/Z/T/J/L's
@@ -105,6 +126,16 @@ export interface TetrPlayerState {
   linesClearedTotal: number;
   alive: boolean;
   botDecideAt: number;
+  botThinkMs: number;
+  botMistakeChance: number;
+  botLookahead: boolean;
+  // Id of the opponent currently receiving this player's garbage. Humans
+  // pick one (and can cycle it -- see cycleTarget) whenever 2+ opponents
+  // exist; bots pick one too so they can occasionally attack each other
+  // instead of always dogpiling the lone human.
+  targetId: string | null;
+  score: number;
+  level: number;
 }
 
 export interface TetrGameState {
@@ -151,7 +182,7 @@ function spawnPiece(player: TetrPlayerState) {
   player.lockDelayEndAt = null;
   player.lockResets = 0;
   player.lastGravityAt = Date.now();
-  if (player.isBot) player.botDecideAt = Date.now() + BOT_THINK_MS;
+  if (player.isBot) player.botDecideAt = Date.now() + player.botThinkMs;
   if (!canPlace(player.grid, type, 0, SPAWN_X, SPAWN_Y)) {
     player.alive = false;
     player.current = null;
@@ -243,13 +274,52 @@ export function holdPiece(player: TetrPlayerState) {
   player.holdUsedThisPiece = true;
 }
 
-function opponentOf(game: TetrGameState, player: TetrPlayerState): TetrPlayerState | null {
+// Bots mostly gang up on the human but sometimes keep hitting each other
+// instead, so a lone human doesn't get overwhelmed by every bot's garbage at
+// once. Humans (in local2p or vs multiple bots) attack whichever opponent is
+// currently assigned as their target, sticking with it until it dies or
+// they cycle it manually (see cycleTarget).
+const BOT_RETARGET_CHANCE = 0.2;
+const BOT_TARGET_HUMAN_CHANCE = 0.65;
+
+function pickTarget(game: TetrGameState, sender: TetrPlayerState): TetrPlayerState | null {
   if (game.players.length < 2) return null;
-  return game.players.find((p) => p.id !== player.id) ?? null;
+
+  const current = sender.targetId ? game.players.find((p) => p.id === sender.targetId) : undefined;
+
+  if (sender.isBot) {
+    if (current && current.alive && Math.random() > BOT_RETARGET_CHANCE) return current;
+    const others = game.players.filter((p) => p.id !== sender.id && p.alive);
+    if (others.length === 0) return null;
+    const human = others.find((p) => !p.isBot);
+    const next =
+      human && Math.random() < BOT_TARGET_HUMAN_CHANCE
+        ? human
+        : others[Math.floor(Math.random() * others.length)];
+    sender.targetId = next.id;
+    return next;
+  }
+
+  if (current && current.alive) return current;
+  const candidates = game.players.filter((p) => p.id !== sender.id && p.alive);
+  const next = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : null;
+  sender.targetId = next?.id ?? null;
+  return next;
+}
+
+// Manually advances a human's target to the next alive opponent (wrapping),
+// bound to a dedicated key so the player isn't stuck with whatever target
+// was randomly assigned.
+export function cycleTarget(game: TetrGameState, sender: TetrPlayerState) {
+  const candidates = game.players.filter((p) => p.id !== sender.id && p.alive);
+  if (candidates.length === 0) return;
+  const idx = candidates.findIndex((p) => p.id === sender.targetId);
+  const next = candidates[(idx + 1) % candidates.length];
+  sender.targetId = next.id;
 }
 
 function routeGarbage(game: TetrGameState, sender: TetrPlayerState, amount: number) {
-  const target = opponentOf(game, sender);
+  const target = pickTarget(game, sender);
   if (!target) return; // solo mode: nowhere for garbage to go
   target.garbageQueue.push({ amount, warnEndAt: Date.now() + GARBAGE_WARNING_MS });
   target.totalGarbageReceived += amount;
@@ -307,6 +377,11 @@ function lockPiece(game: TetrGameState, player: TetrPlayerState) {
     player.comboCount = player.comboCount < 0 ? 0 : player.comboCount + 1;
     const comboBonus =
       player.comboCount > 0 ? Math.min(player.comboCount, GARBAGE_COMBO_CAP) * GARBAGE_COMBO_STEP : 0;
+
+    player.level = Math.floor(player.linesClearedTotal / SCORE_LINES_PER_LEVEL) + 1;
+    const lineScore = LINE_SCORE_BASE[Math.min(lines, 4)];
+    const comboScore = player.comboCount > 0 ? player.comboCount * SCORE_COMBO_STEP : 0;
+    player.score += (lineScore + comboScore) * player.level;
 
     let attack = 0;
     if (lines === 1) attack = GARBAGE_SINGLE;
@@ -392,25 +467,50 @@ function evaluateGrid(grid: CellValue[][]): number {
   return -(aggHeight * 0.5 + bumpiness * 1 + holes * 4 + maxHeight * 0.5);
 }
 
+// Best placement for `type` on `grid`, optionally averaged with the best
+// placement of `nextType` on the resulting grid (hard bots' 1-piece
+// lookahead), so a locally-great spot that boxes in the next piece scores
+// worse than a slightly-worse spot that doesn't.
+function bestPlacements(
+  grid: CellValue[][],
+  type: PieceType,
+  startY: number,
+  nextType: PieceType | undefined,
+  lookahead: boolean,
+) {
+  const candidates: { rot: number; x: number; ny: number; score: number }[] = [];
+  for (let rot = 0; rot < 4; rot++) {
+    for (let x = -2; x < BOARD_WIDTH + 2; x++) {
+      if (!canPlace(grid, type, rot, x, startY)) continue;
+      let ny = startY;
+      while (canPlace(grid, type, rot, x, ny + 1)) ny++;
+      const clone = cloneGrid(grid);
+      stampPiece(clone, type, rot, x, ny);
+      let score = evaluateGrid(clone);
+      if (lookahead && nextType) {
+        const followUp = bestPlacements(clone, nextType, SPAWN_Y, undefined, false);
+        if (followUp.length > 0) score = (score + followUp[0].score) / 2;
+      }
+      candidates.push({ rot, x, ny, score });
+    }
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates;
+}
+
 function runBotAI(game: TetrGameState, player: TetrPlayerState) {
   const p = player.current;
   if (!p) return;
-  let best: { rot: number; x: number; ny: number; score: number } | null = null;
-  for (let rot = 0; rot < 4; rot++) {
-    for (let x = -2; x < BOARD_WIDTH + 2; x++) {
-      if (!canPlace(player.grid, p.type, rot, x, p.y)) continue;
-      let ny = p.y;
-      while (canPlace(player.grid, p.type, rot, x, ny + 1)) ny++;
-      const clone = cloneGrid(player.grid);
-      stampPiece(clone, p.type, rot, x, ny);
-      const score = evaluateGrid(clone);
-      if (!best || score > best.score) best = { rot, x, ny, score };
-    }
+  const candidates = bestPlacements(player.grid, p.type, p.y, player.nextQueue[0], player.botLookahead);
+  let chosen = candidates[0];
+  if (chosen && player.botMistakeChance > 0 && Math.random() < player.botMistakeChance) {
+    const pool = candidates.slice(0, Math.min(candidates.length, 5));
+    chosen = pool[Math.floor(Math.random() * pool.length)];
   }
-  if (best) {
-    p.rotation = best.rot;
-    p.x = best.x;
-    p.y = best.ny;
+  if (chosen) {
+    p.rotation = chosen.rot;
+    p.x = chosen.x;
+    p.y = chosen.ny;
   }
   hardDrop(game, player);
 }
@@ -423,7 +523,8 @@ function currentGravityMs(game: TetrGameState): number {
   return Math.max(g, game.gravity.minGravityMs);
 }
 
-function createPlayer(id: string, isBot: boolean): TetrPlayerState {
+function createPlayer(id: string, isBot: boolean, difficulty: BotDifficulty): TetrPlayerState {
+  const botConfig = BOT_DIFFICULTY_CONFIG[difficulty];
   const player: TetrPlayerState = {
     id,
     isBot,
@@ -446,22 +547,35 @@ function createPlayer(id: string, isBot: boolean): TetrPlayerState {
     linesClearedTotal: 0,
     alive: true,
     botDecideAt: 0,
+    botThinkMs: botConfig.thinkMs,
+    botMistakeChance: botConfig.mistakeChance,
+    botLookahead: botConfig.lookahead,
+    targetId: null,
+    score: 0,
+    level: 1,
   };
   refillQueue(player);
   spawnPiece(player);
   return player;
 }
 
-export function createTetrGame(mode: GameMode, gravity: GravityConfig): TetrGameState {
+export function createTetrGame(
+  mode: GameMode,
+  gravity: GravityConfig,
+  botCount = 1,
+  botDifficulty: BotDifficulty = "medium",
+): TetrGameState {
   const players: TetrPlayerState[] = [];
   if (mode === "solo") {
-    players.push(createPlayer("player", false));
+    players.push(createPlayer("player", false, botDifficulty));
   } else if (mode === "vsBot") {
-    players.push(createPlayer("player", false));
-    players.push(createPlayer("bot", true));
+    players.push(createPlayer("player", false, botDifficulty));
+    for (let i = 0; i < Math.max(1, botCount); i++) {
+      players.push(createPlayer(`bot-${i + 1}`, true, botDifficulty));
+    }
   } else {
-    players.push(createPlayer("p1", false));
-    players.push(createPlayer("p2", false));
+    players.push(createPlayer("p1", false, botDifficulty));
+    players.push(createPlayer("p2", false, botDifficulty));
   }
   return {
     mode,
@@ -515,6 +629,22 @@ export function tickTetrGame(game: TetrGameState): boolean {
     if (!game.players[0].alive) {
       game.resolved = true;
       game.winnerId = null;
+      return true;
+    }
+    return false;
+  }
+
+  if (game.mode === "vsBot") {
+    const human = game.players.find((p) => !p.isBot)!;
+    const aliveBots = game.players.filter((p) => p.isBot && p.alive);
+    if (!human.alive) {
+      game.resolved = true;
+      game.winnerId = aliveBots[0]?.id ?? null;
+      return true;
+    }
+    if (aliveBots.length === 0) {
+      game.resolved = true;
+      game.winnerId = human.id;
       return true;
     }
     return false;

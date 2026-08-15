@@ -1,28 +1,77 @@
+/* The widget's footprint is one large, fixed-size box, always -- it never
+   changes with game mode, board/bot count, or menu vs. play state. The menu
+   fills this box directly (.menuScreen, inset 0). The game boards scale up
+   or down as a unit to fill as much of this same box as they can without
+   distorting (.gameStage + .fitStage, measured/scaled in
+   useTetrFitScale.ts). Either way the box itself never resizes -- only
+   what's drawn inside it does.
+
+   min-width is load-bearing: every child of .wrap is position:absolute
+   (menuScreen/gameStage), so nothing inside contributes to .wrap's own
+   intrinsic width anymore. A host page that puts the mount point inside a
+   shrink-to-fit context (e.g. a flex container with align-items: center --
+   this repo's own dev harness does exactly that) would otherwise resolve
+   `width: 100%` against ~0 and collapse the whole widget to an invisible
+   sliver. min-width is an absolute unit, so it always wins a real floor
+   regardless of the parent's own sizing. */
 .wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
+  position: relative;
   width: 100%;
-  min-width: 0;
+  min-width: 320px;
+  aspect-ratio: 3 / 2;
+  max-height: 95vh;
+  overflow: hidden;
+  margin: 0 auto;
+  background: #14151a;
+  border-radius: 8px;
   touch-action: none;
   font-family: system-ui, -apple-system, sans-serif;
+  /* All text sizes below are `clamp(rem, cqw, rem)` -- the cqw component
+     resolves against this container's own inline size (not the viewport),
+     so text actually scales with however big/small the widget is embedded,
+     while the rem floor/ceiling keep it from going illegibly small or
+     comically large at the extremes. */
+  container-type: inline-size;
+}
+
+.gameStage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fitStage {
+  transform-origin: center center;
 }
 
 .canvasWrap {
   position: relative;
   display: inline-block;
-  width: 100%;
 }
 
 .boardsRow {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  gap: 1.2rem;
-  flex-wrap: wrap;
-  width: 100%;
+  gap: 0.9rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   min-width: 0;
+}
+
+/* Bot boards sit in their own grid, up to 2 columns wide, so 3 bots wrap to
+   a second row instead of stretching the whole layout wider and wider. Kept
+   small/tight so the primary (self) board -- fixed at a much larger cell
+   size -- is the one that drives the shared fit-scale up toward filling the
+   container's height (see useTetrFitScale). */
+.opponentsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 0.5rem 0.6rem;
+  justify-content: center;
+  align-items: start;
 }
 
 .boardColumn {
@@ -32,6 +81,15 @@
   gap: 0.5rem;
   min-width: 0;
   flex-shrink: 1;
+}
+
+/* Bot/opponent boards stack their name + targeting indicator above the
+   board itself (a column), rather than beside it like the self board's
+   HUD -- the indicator needs to read as "attached to this board" when
+   several bot boards sit side by side in one row. */
+.boardColumnOpponent {
+  flex-direction: column;
+  align-items: center;
 }
 
 .boardStack {
@@ -45,20 +103,59 @@
 }
 
 .boardName {
-  font-size: 0.75rem;
+  font-size: clamp(0.45rem, 1.5cqw, 1.05rem);
   color: #aaa;
   white-space: nowrap;
+}
+
+.boardNameTargeted {
+  color: #ffd166;
+  font-weight: 700;
+}
+
+.boardNameTarget {
+  color: #777;
+  font-weight: 400;
+}
+
+.boardNameTargeted .boardNameTarget {
+  color: #ffd166;
+  opacity: 0.85;
+}
+
+/* Highlights whichever opponent board the human is currently attacking. */
+.boardColumnTargeted .boardCanvas {
+  border-color: #ffd166;
+  box-shadow: 0 0 10px rgba(255, 209, 102, 0.55);
+}
+
+.selfTargetLabel {
+  font-size: clamp(0.45rem, 1.5cqw, 1.05rem);
+  color: #ffd166;
+  white-space: nowrap;
+}
+
+.targetHint {
+  color: #999;
+  font-weight: 400;
+}
+
+.scoreValue {
+  font-weight: 700;
+  font-size: clamp(0.6rem, 2cqw, 1.4rem);
+  color: #eee;
+  font-variant-numeric: tabular-nums;
+}
+
+.levelValue {
+  font-size: clamp(0.42rem, 1.4cqw, 0.98rem);
+  color: #999;
 }
 
 .boardCanvas {
   border-radius: 6px;
   border: 2px solid #333;
-  max-width: 100%;
-  max-height: 70vh;
-  min-width: 0;
-  width: auto;
-  height: auto;
-  flex-shrink: 1;
+  display: block;
   background: #14151a;
 }
 
@@ -86,7 +183,7 @@
 }
 
 .hudLabel {
-  font-size: 0.62rem;
+  font-size: clamp(0.372rem, 1.24cqw, 0.868rem);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #999;
@@ -105,7 +202,7 @@
 
 .garbageCount {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: clamp(0.66rem, 2.2cqw, 1.54rem);
   color: #e0524f;
   font-variant-numeric: tabular-nums;
 }
@@ -114,7 +211,7 @@
   display: flex;
   gap: 8px;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: clamp(0.48rem, 1.6cqw, 1.12rem);
   color: #f7d308;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -123,7 +220,7 @@
 .statusRow {
   display: flex;
   gap: 1.5rem;
-  font-size: 0.85rem;
+  font-size: clamp(0.51rem, 1.7cqw, 1.19rem);
   color: #ccc;
 }
 
@@ -170,7 +267,7 @@
 
 .popup {
   font-weight: 800;
-  font-size: 1.1rem;
+  font-size: clamp(0.66rem, 2.2cqw, 1.54rem);
   letter-spacing: 0.03em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -188,12 +285,14 @@
 
 .popup_single, .popup_double { color: #9fd8ff; }
 .popup_triple { color: #ffd166; }
-.popup_tetris { color: #ff5d73; font-size: 1.35rem; }
+.popup_tetris { color: #ff5d73; font-size: clamp(0.81rem, 2.7cqw, 1.89rem); }
 .popup_combo { color: #f7d308; }
 .popup_b2b { color: #c792ff; }
 
 /* ---- Menu / settings shell (same shape as the snake widget) ---- */
 
+/* Only used for the countdown, which layers on top of the actual boards
+   (still visible underneath) -- sized to whatever box the boards occupy. */
 .overlay {
   position: absolute;
   inset: 0;
@@ -208,9 +307,24 @@
   text-align: center;
 }
 
-.menuOverlay {
-  padding: 1.5rem;
+/* The menu fills the fixed square directly (inset 0 on .wrap) instead of
+   being sized to its own content and then shrunk/scaled to fit -- that
+   used to leave it as a small rectangle floating in the middle of the
+   square with empty space around it. */
+.menuScreen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
   overflow-y: auto;
+  padding: 1.5rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  text-align: center;
 }
 
 .menu {
@@ -234,7 +348,7 @@
   margin: -0.25rem 0 0.5rem;
   text-align: center;
   color: #ccc;
-  font-size: 1rem;
+  font-size: clamp(0.6rem, 2cqw, 1.4rem);
 }
 
 .menuBtn {
@@ -257,11 +371,11 @@
 
 .menuBtnLabel {
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: clamp(0.63rem, 2.1cqw, 1.47rem);
 }
 
 .menuBtnBlurb {
-  font-size: 0.8rem;
+  font-size: clamp(0.48rem, 1.6cqw, 1.12rem);
   opacity: 0.8;
 }
 
@@ -271,8 +385,115 @@
 }
 
 .countdownNum {
-  font-size: 3.5rem;
+  font-size: clamp(2.1rem, 7cqw, 4.9rem);
   font-weight: 800;
+}
+
+.pausePanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  background: #1c1e26;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-width: 90%;
+  max-height: 90%;
+  overflow-y: auto;
+}
+
+.pauseTitle {
+  margin: 0;
+  font-size: clamp(0.9rem, 3cqw, 1.6rem);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #eee;
+}
+
+.pauseColumns {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pauseColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 9rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+}
+
+.pauseColumnHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  font-size: clamp(0.54rem, 1.8cqw, 1.26rem);
+  color: #eee;
+  margin-bottom: 0.2rem;
+}
+
+.pauseRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: clamp(0.48rem, 1.6cqw, 1.12rem);
+}
+
+.pauseRowLabel {
+  color: #999;
+}
+
+.pauseRowKeys {
+  color: #eee;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pauseActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.pauseBtnPrimary,
+.pauseBtnSecondary {
+  padding: 0.55rem 1.4rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 700;
+  font-size: clamp(0.54rem, 1.8cqw, 1.26rem);
+  cursor: pointer;
+}
+
+.pauseBtnPrimary {
+  background: #38bdf8;
+  color: #08202b;
+}
+
+.pauseBtnPrimary:hover {
+  filter: brightness(1.05);
+}
+
+.pauseBtnSecondary {
+  background: transparent;
+  color: #eee;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.pauseBtnSecondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.pauseHint {
+  margin: 0;
+  font-size: clamp(0.42rem, 1.4cqw, 0.98rem);
+  color: #888;
 }
 
 .controlLegend {
@@ -280,7 +501,7 @@
   gap: 1.25rem;
   flex-wrap: wrap;
   justify-content: center;
-  font-size: 0.85rem;
+  font-size: clamp(0.51rem, 1.7cqw, 1.19rem);
   color: #ccc;
 }
 
@@ -325,6 +546,7 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  overflow-y: auto;
 }
 
 .settingsScreen .cornerBtn {
@@ -355,7 +577,7 @@
 
 .settingsSectionTitle {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: clamp(0.51rem, 1.7cqw, 1.19rem);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #aaa;
@@ -369,7 +591,7 @@
 
 .settingsLabel {
   flex: 1;
-  font-size: 0.9rem;
+  font-size: clamp(0.54rem, 1.8cqw, 1.26rem);
   color: #eee;
 }
 
@@ -385,7 +607,7 @@
   border: none;
   background: #3f4451;
   color: #ddd;
-  font-size: 0.75rem;
+  font-size: clamp(0.45rem, 1.5cqw, 1.05rem);
   padding: 0.3rem 0.5rem;
   cursor: pointer;
 }
@@ -438,8 +660,19 @@
 }
 
 .themeLabel {
-  font-size: 0.75rem;
+  font-size: clamp(0.45rem, 1.5cqw, 1.05rem);
   color: #ccc;
+}
+
+.pieceStylePreview {
+  display: block;
+  width: 2.6rem;
+  height: 1.6rem;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+}
+
+.themeBtnActive .pieceStylePreview {
+  border-color: #fff;
 }
 
 .controls {
@@ -465,7 +698,7 @@
   border: none;
   background: #fff;
   color: #1a1a1a;
-  font-size: 1.4rem;
+  font-size: clamp(0.84rem, 2.8cqw, 1.96rem);
   cursor: pointer;
   touch-action: none;
   user-select: none;
@@ -476,7 +709,7 @@
 }
 
 .holdBtn {
-  font-size: 0.85rem;
+  font-size: clamp(0.51rem, 1.7cqw, 1.19rem);
   font-weight: 600;
   min-width: 4rem;
 }

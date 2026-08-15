@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
 import type { TetrPlayerState } from "./engine";
+import type { PieceStyle } from "./pieces";
 import { TetrBoardCanvas } from "./TetrBoardCanvas";
 import { useTetrBoardEffects } from "./useTetrBoardEffects";
 import styles from "./Tetr.module.css";
@@ -17,14 +18,16 @@ interface TetrAnimatedBoardProps {
   showGhost?: boolean;
   dim?: boolean;
   suppressLockRef?: RefObject<number>;
+  pieceStyle?: PieceStyle;
+  shakeEnabled?: boolean;
 }
 
-export function TetrAnimatedBoard({ board, dim, suppressLockRef, ...rest }: TetrAnimatedBoardProps) {
+export function TetrAnimatedBoard({ board, dim, suppressLockRef, shakeEnabled = true, ...rest }: TetrAnimatedBoardProps) {
   const { flashToken, shakeToken, popups } = useTetrBoardEffects(board, suppressLockRef);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (shakeToken === 0) return;
+    if (shakeToken === 0 || !shakeEnabled) return;
     const el = wrapRef.current;
     if (!el) return;
     el.classList.remove(styles.boardShake);
@@ -32,7 +35,7 @@ export function TetrAnimatedBoard({ board, dim, suppressLockRef, ...rest }: Tetr
     el.classList.add(styles.boardShake);
     const t = setTimeout(() => el.classList.remove(styles.boardShake), SHAKE_MS);
     return () => clearTimeout(t);
-  }, [shakeToken]);
+  }, [shakeToken, shakeEnabled]);
 
   return (
     <div ref={wrapRef} className={styles.boardStack}>

@@ -1,7 +1,7 @@
 // User-configurable rules and appearance, editable from the in-widget
 // settings screen and persisted to localStorage so choices survive a reload.
-import { COLOR_PALETTES, paletteById } from "./pieces";
-import { gravityConfigForSpeed, type GravityConfig } from "./engine";
+import { COLOR_PALETTES, PIECE_STYLES, paletteById, pieceStyleById } from "./pieces";
+import { gravityConfigForSpeed, type BotDifficulty, type GravityConfig } from "./engine";
 
 export type GameSpeed = "slow" | "normal" | "fast" | "insane";
 
@@ -18,14 +18,35 @@ export const SPEED_OPTIONS: SpeedOption[] = [
   { id: "insane", label: "Insane", multiplier: 2 },
 ];
 
+export const BOT_COUNT_OPTIONS = [1, 2, 3] as const;
+
+export interface BotDifficultyOption {
+  id: BotDifficulty;
+  label: string;
+}
+
+export const BOT_DIFFICULTY_OPTIONS: BotDifficultyOption[] = [
+  { id: "easy", label: "Easy" },
+  { id: "medium", label: "Medium" },
+  { id: "hard", label: "Hard" },
+];
+
 export interface TetrSettings {
   speed: GameSpeed;
   paletteId: string;
+  pieceStyleId: string;
+  botCount: number;
+  botDifficulty: BotDifficulty;
+  screenShake: boolean;
 }
 
 export const DEFAULT_SETTINGS: TetrSettings = {
   speed: "normal",
   paletteId: COLOR_PALETTES[0].id,
+  pieceStyleId: PIECE_STYLES[0].id,
+  botCount: 1,
+  botDifficulty: "medium",
+  screenShake: true,
 };
 
 const STORAGE_KEY = "tetr-versus-settings";
@@ -63,4 +84,8 @@ export function settingsToColors(settings: TetrSettings) {
   return paletteById(settings.paletteId).colors;
 }
 
-export { COLOR_PALETTES };
+export function settingsToPieceStyle(settings: TetrSettings) {
+  return pieceStyleById(settings.pieceStyleId);
+}
+
+export { COLOR_PALETTES, PIECE_STYLES };

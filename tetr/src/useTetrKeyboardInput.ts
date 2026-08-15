@@ -18,6 +18,7 @@ export interface TetrControlScheme {
   rotateCw: string[];
   rotateCcw: string[];
   hold: string[];
+  cycleTarget: string[];
 }
 
 export interface TetrControlActions {
@@ -29,15 +30,19 @@ export interface TetrControlActions {
   rotateCw: () => void;
   rotateCcw: () => void;
   hold: () => void;
+  cycleTarget: () => void;
 }
 
 function normalizeKey(key: string): string {
   return key.length === 1 ? key.toLowerCase() : key;
 }
 
-function matches(list: string[], key: string): boolean {
-  const nk = normalizeKey(key);
-  return list.some((k) => normalizeKey(k) === nk);
+// "ShiftLeft"/"ShiftRight" aren't real `key` values (e.key is just "Shift"
+// for both) -- they're matched against `e.code` instead, which is how left
+// and right modifier keys are told apart.
+function matches(list: string[], e: KeyboardEvent): boolean {
+  const nk = normalizeKey(e.key);
+  return list.some((k) => (k === "ShiftLeft" || k === "ShiftRight" ? k === e.code : normalizeKey(k) === nk));
 }
 
 export function useTetrKeyboardInput(
@@ -71,47 +76,49 @@ export function useTetrKeyboardInput(
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
-      const key = e.key;
-      if (matches(scheme.left, key)) {
+      if (matches(scheme.left, e)) {
         e.preventDefault();
         if (e.repeat) return;
         heldDirections.add("left");
         startHorizontalRepeat(() => actionsRef.current.moveLeft());
-      } else if (matches(scheme.right, key)) {
+      } else if (matches(scheme.right, e)) {
         e.preventDefault();
         if (e.repeat) return;
         heldDirections.add("right");
         startHorizontalRepeat(() => actionsRef.current.moveRight());
-      } else if (matches(scheme.softDrop, key)) {
+      } else if (matches(scheme.softDrop, e)) {
         e.preventDefault();
         if (!e.repeat) actionsRef.current.softDropStart();
-      } else if (matches(scheme.hardDrop, key)) {
+      } else if (matches(scheme.hardDrop, e)) {
         e.preventDefault();
         if (e.repeat) return;
         actionsRef.current.hardDrop();
-      } else if (matches(scheme.rotateCw, key)) {
+      } else if (matches(scheme.rotateCw, e)) {
         e.preventDefault();
         if (e.repeat) return;
         actionsRef.current.rotateCw();
-      } else if (matches(scheme.rotateCcw, key)) {
+      } else if (matches(scheme.rotateCcw, e)) {
         e.preventDefault();
         if (e.repeat) return;
         actionsRef.current.rotateCcw();
-      } else if (matches(scheme.hold, key)) {
+      } else if (matches(scheme.hold, e)) {
         e.preventDefault();
         if (e.repeat) return;
         actionsRef.current.hold();
+      } else if (matches(scheme.cycleTarget, e)) {
+        e.preventDefault();
+        if (e.repeat) return;
+        actionsRef.current.cycleTarget();
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
-      const key = e.key;
-      if (matches(scheme.left, key)) {
+      if (matches(scheme.left, e)) {
         heldDirections.delete("left");
         if (!heldDirections.has("right")) clearHorizontalRepeat();
-      } else if (matches(scheme.right, key)) {
+      } else if (matches(scheme.right, e)) {
         heldDirections.delete("right");
         if (!heldDirections.has("left")) clearHorizontalRepeat();
-      } else if (matches(scheme.softDrop, key)) {
+      } else if (matches(scheme.softDrop, e)) {
         actionsRef.current.softDropEnd();
       }
     };

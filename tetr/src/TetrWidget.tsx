@@ -6,6 +6,7 @@ import {
   rotate,
   hardDrop,
   holdPiece,
+  cycleTarget,
   BOARD_WIDTH,
   BOARD_HEIGHT,
   BOARD_HIDDEN_ROWS,
@@ -14,12 +15,14 @@ import {
   type TetrPlayerState,
 } from "./engine";
 import { TetrBoardPanel } from "./TetrBoardPanel";
+import { useTetrFitScale } from "./useTetrFitScale";
 import { SettingsScreen } from "./SettingsScreen";
 import {
   loadSettings,
   saveSettings,
   settingsToGravityConfig,
   settingsToColors,
+  settingsToPieceStyle,
   type TetrSettings,
 } from "./settings";
 import type { TetrControlActions, TetrControlScheme } from "./useTetrKeyboardInput";
@@ -29,19 +32,21 @@ import type { GameMode } from "./types";
 const KILL_FREEZE_MS = 900;
 const COUNTDOWN_START = 3;
 const COUNTDOWN_STEP_MS = 800;
+// Smaller than the solo/vsBot self-view cell size so two full boards (each
+// with its own HUD) sit side by side without wrapping to a vertical stack.
+const LOCAL2P_CELL_SIZE = 20;
 
 // Two non-overlapping key sets for local2p (the single-player modes accept
-// both clusters at once so either hand works solo). No modifier keys
-// (Shift/Ctrl) are used anywhere -- `e.key` can't tell left-Shift from
-// right-Shift, so avoiding modifiers entirely sidesteps that ambiguity
-// rather than relying on `e.code`.
+// both clusters at once so either hand works solo). "ShiftLeft" is matched
+// against `e.code` (see useTetrKeyboardInput) since `e.key` can't tell
+// left-Shift from right-Shift.
 const P1_SCHEME_KEYS = {
   left: ["a"], right: ["d"], softDrop: ["s"],
-  rotateCw: ["w"], rotateCcw: ["q"], hardDrop: [" "], hold: ["e"],
+  rotateCw: ["w"], rotateCcw: ["q"], hardDrop: [" "], hold: ["ShiftLeft"], cycleTarget: [] as string[],
 };
 const P2_SCHEME_KEYS = {
   left: ["ArrowLeft"], right: ["ArrowRight"], softDrop: ["ArrowDown"],
-  rotateCw: ["ArrowUp"], rotateCcw: ["/"], hardDrop: ["Enter"], hold: ["."],
+  rotateCw: ["ArrowUp"], rotateCcw: ["/"], hardDrop: ["Enter"], hold: ["."], cycleTarget: [] as string[],
 };
 const SOLO_SCHEME_KEYS = {
   left: [...P1_SCHEME_KEYS.left, ...P2_SCHEME_KEYS.left],
@@ -51,12 +56,16 @@ const SOLO_SCHEME_KEYS = {
   rotateCcw: [...P1_SCHEME_KEYS.rotateCcw, ...P2_SCHEME_KEYS.rotateCcw],
   hardDrop: [...P1_SCHEME_KEYS.hardDrop, ...P2_SCHEME_KEYS.hardDrop],
   hold: [...P1_SCHEME_KEYS.hold, ...P2_SCHEME_KEYS.hold],
+  // Only meaningful in vsBot (with an opponent to cycle to) -- bound to a
+  // dedicated key rather than a modifier since neither P1/P2 cluster uses
+  // Shift/Ctrl and `e.key` can't disambiguate left/right modifiers anyway.
+  cycleTarget: ["c"],
 };
 
 function schemesForMode(mode: GameMode): TetrControlScheme[] {
   if (mode === "local2p") {
     return [
-      { playerId: "p1", label: "Player 1", color: "#38bdf8", keysLabel: "WASD + Q/E/Space", ...P1_SCHEME_KEYS },
+      { playerId: "p1", label: "Player 1", color: "#38bdf8", keysLabel: "WASD + Q/Shift/Space", ...P1_SCHEME_KEYS },
       { playerId: "p2", label: "Player 2", color: "#f97316", keysLabel: "Arrows + . / / / Enter", ...P2_SCHEME_KEYS },
     ];
   }
@@ -84,14 +93,18 @@ function controlSummaryForMode(mode: GameMode): ControlSummaryEntry[] {
 }
 
 function displayName(mode: GameMode, id: string): string {
-  if (mode === "vsBot") return id === "player" ? "You" : "Bot";
+  if (mode === "vsBot") {
+    if (id === "player") return "You";
+    const n = id.startsWith("bot-") ? id.slice(4) : "";
+    return n ? `Bot ${n}` : "Bot";
+  }
   if (mode === "local2p") return id === "p1" ? "Player 1" : "Player 2";
   return "You";
 }
 
 const MODE_OPTIONS: { mode: GameMode; label: string; blurb: string }[] = [
   { mode: "solo", label: "1 Player", blurb: "Marathon: survive the ramping speed" },
-  { mode: "vsBot", label: "1 Player vs AI", blurb: "Duel a bot -- clear lines to send garbage" },
+  { mode: "vsBot", label: "1 Player vs AI", blurb: "Duel bots -- clear lines to send garbage (bot count in Settings)" },
   { mode: "local2p", label: "2 Player", blurb: "Shared keyboard duel" },
 ];
 
@@ -103,8 +116,45 @@ function isTouchDevice(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 }
 
-type Phase = "menu" | "countdown" | "playing";
+type Phase = "menu" | "countdown" | "playing" | "paused";
 type MenuView = "modes" | "settings";
+
+const KEY_LABELS: Record<string, string> = {
+  " ": "Space",
+  ArrowLeft: "←",
+  ArrowRight: "→",
+  ArrowUp: "↑",
+  ArrowDown: "↓",
+  ShiftLeft: "Shift",
+};
+
+function prettyKey(key: string): string {
+  return KEY_LABELS[key] ?? (key.length === 1 ? key.toUpperCase() : key);
+}
+
+function keysText(keys: string[]): string {
+  return keys.map(prettyKey).join(" / ");
+}
+
+interface PauseControlRow {
+  label: string;
+  keys: string;
+}
+
+function pauseControlRows(scheme: TetrControlScheme): PauseControlRow[] {
+  const rows: PauseControlRow[] = [
+    { label: "Move", keys: `${keysText(scheme.left)}  ${keysText(scheme.right)}` },
+    { label: "Soft Drop", keys: keysText(scheme.softDrop) },
+    { label: "Hard Drop", keys: keysText(scheme.hardDrop) },
+    { label: "Rotate CW", keys: keysText(scheme.rotateCw) },
+    { label: "Rotate CCW", keys: keysText(scheme.rotateCcw) },
+    { label: "Hold", keys: keysText(scheme.hold) },
+  ];
+  if (scheme.cycleTarget.length > 0) {
+    rows.push({ label: "Switch Target", keys: keysText(scheme.cycleTarget) });
+  }
+  return rows;
+}
 
 function resultTextFor(mode: GameMode, game: TetrGameState): string {
   if (mode === "solo") {
@@ -125,9 +175,10 @@ export function TetrWidget() {
   const [phase, setPhase] = useState<Phase>("menu");
   const [menuView, setMenuView] = useState<MenuView>("modes");
   const [settings, setSettings] = useState<TetrSettings>(() => loadSettings());
-  const [game, setGame] = useState<TetrGameState>(() =>
-    createTetrGame("vsBot", settingsToGravityConfig(loadSettings())),
-  );
+  const [game, setGame] = useState<TetrGameState>(() => {
+    const initial = loadSettings();
+    return createTetrGame("vsBot", settingsToGravityConfig(initial), initial.botCount, initial.botDifficulty);
+  });
   const [resultText, setResultText] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
   const gameRef = useRef<TetrGameState>(game);
@@ -137,6 +188,7 @@ export function TetrWidget() {
   phaseRef.current = phase;
 
   const pieceColors = useMemo(() => settingsToColors(settings), [settings.paletteId]);
+  const pieceStyle = useMemo(() => settingsToPieceStyle(settings), [settings.pieceStyleId]);
   const schemes = useMemo(() => schemesForMode(mode), [mode]);
 
   function updateSettings(next: TetrSettings) {
@@ -178,6 +230,34 @@ export function TetrWidget() {
     return () => clearTimeout(t);
   }, [phase, countdown]);
 
+  // Escape toggles pause independent of the per-board keyboard hooks (those
+  // detach their listeners whenever a board isn't `enabled`, which is also
+  // true while paused) -- this one stays mounted for the whole widget so
+  // Escape keeps working to pause/resume.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (phaseRef.current === "playing") {
+        e.preventDefault();
+        setPhase("paused");
+      } else if (phaseRef.current === "paused") {
+        e.preventDefault();
+        setPhase("playing");
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  function resumeGame() {
+    setPhase("playing");
+  }
+
+  function quitToMenu() {
+    setPhase("menu");
+    setResultText(null);
+  }
+
   function getPlayer(playerId: string): TetrPlayerState {
     return gameRef.current.players.find((p) => p.id === playerId)!;
   }
@@ -216,6 +296,10 @@ export function TetrWidget() {
         if (phaseRef.current !== "playing" || roundOverRef.current) return;
         holdPiece(getPlayer(playerId));
       },
+      cycleTarget: () => {
+        if (phaseRef.current !== "playing" || roundOverRef.current) return;
+        cycleTarget(gameRef.current, getPlayer(playerId));
+      },
     };
   }
 
@@ -229,7 +313,7 @@ export function TetrWidget() {
   }, [schemes]);
 
   function startMode(next: GameMode) {
-    const fresh = createTetrGame(next, settingsToGravityConfig(settings));
+    const fresh = createTetrGame(next, settingsToGravityConfig(settings), settings.botCount, settings.botDifficulty);
     gameRef.current = fresh;
     roundOverRef.current = false;
     setMode(next);
@@ -242,78 +326,143 @@ export function TetrWidget() {
   const humanPlayerIds = new Set(schemes.map((s) => s.playerId));
   const primaryBoard = game.players[0];
   const opponentBoards = game.players.slice(1);
+  const humanTargetId = mode === "vsBot" ? primaryBoard?.targetId : null;
+  const showTargeting = mode === "vsBot" && opponentBoards.length > 0;
+  const canCycleTargets = mode === "vsBot" && opponentBoards.length > 1;
+  const { containerRef, contentRef, scale } = useTetrFitScale<HTMLDivElement, HTMLDivElement>();
 
   return (
-    <div className={styles.wrap}>
-      <div className={styles.canvasWrap}>
-        <div className={styles.boardsRow}>
-          {primaryBoard && (
-            <TetrBoardPanel
-              board={primaryBoard}
-              boardWidth={BOARD_WIDTH}
-              boardHeight={BOARD_HEIGHT}
-              hiddenRows={BOARD_HIDDEN_ROWS}
-              pieceColors={pieceColors}
-              name={displayName(mode, primaryBoard.id)}
-              scheme={schemes.find((s) => s.playerId === primaryBoard.id)}
-              actions={actionsByPlayerId[primaryBoard.id]}
-              enabled={phase === "playing" && humanPlayerIds.has(primaryBoard.id)}
-              showTouchControls={isMobile && mode !== "local2p"}
-            />
-          )}
-          {opponentBoards.map((b) => (
-            <TetrBoardPanel
-              key={b.id}
-              board={b}
-              boardWidth={BOARD_WIDTH}
-              boardHeight={BOARD_HEIGHT}
-              hiddenRows={BOARD_HIDDEN_ROWS}
-              pieceColors={pieceColors}
-              name={displayName(mode, b.id)}
-              scheme={schemes.find((s) => s.playerId === b.id)}
-              actions={actionsByPlayerId[b.id]}
-              enabled={phase === "playing" && humanPlayerIds.has(b.id)}
-              isOpponent={mode !== "local2p"}
-            />
-          ))}
-        </div>
-
-        {phase === "countdown" && (
-          <div className={styles.overlay}>
-            <div className={styles.countdownNum}>{countdown > 0 ? countdown : "Go!"}</div>
-          </div>
-        )}
-        {phase === "menu" && menuView === "settings" && (
-          <div className={`${styles.overlay} ${styles.menuOverlay}`}>
-            <SettingsScreen settings={settings} onChange={updateSettings} onBack={() => setMenuView("modes")} />
-          </div>
-        )}
-        {phase === "menu" && menuView === "modes" && (
-          <div className={`${styles.overlay} ${styles.menuOverlay}`}>
-            <button type="button" className={styles.cornerBtn} onClick={() => setMenuView("settings")} aria-label="Settings">
-              <GearIcon />
-            </button>
-            <h2 className={styles.menuTitle}>{resultText ?? "Tetr Versus"}</h2>
-            <p className={styles.menuSubtitle}>{resultText ? "Play again?" : "By Michael Mocioiu"}</p>
-            <div className={styles.menu}>
-              {modeOptions.map((opt) => (
-                <button key={opt.mode} type="button" className={styles.menuBtn} onClick={() => startMode(opt.mode)}>
-                  <span className={styles.menuBtnLabel}>{opt.label}</span>
-                  <span className={styles.menuBtnBlurb}>{opt.blurb}</span>
-                  <span className={styles.controlLegend}>
-                    {controlSummaryForMode(opt.mode).map((entry) => (
-                      <span key={entry.label} className={styles.controlLegendItem}>
-                        <span className={styles.controlSwatch} style={{ background: entry.color }} />
-                        {entry.label}: {entry.text}
-                      </span>
+    <div className={styles.wrap} ref={containerRef}>
+      {/* Boards render only outside the menu -- letterboxed (scaled, never
+          stretched) to fit the fixed square via .gameStage/.fitStage. */}
+      {phase !== "menu" && (
+        <div className={styles.gameStage}>
+          <div className={styles.fitStage} ref={contentRef} style={{ transform: `scale(${scale})` }}>
+            <div className={styles.canvasWrap}>
+              <div className={styles.boardsRow}>
+                {primaryBoard && (
+                  <TetrBoardPanel
+                    board={primaryBoard}
+                    boardWidth={BOARD_WIDTH}
+                    boardHeight={BOARD_HEIGHT}
+                    hiddenRows={BOARD_HIDDEN_ROWS}
+                    pieceColors={pieceColors}
+                    pieceStyle={pieceStyle}
+                    name={displayName(mode, primaryBoard.id)}
+                    scheme={schemes.find((s) => s.playerId === primaryBoard.id)}
+                    actions={actionsByPlayerId[primaryBoard.id]}
+                    enabled={phase === "playing" && humanPlayerIds.has(primaryBoard.id)}
+                    showTouchControls={isMobile && mode !== "local2p"}
+                    cellSize={mode === "local2p" ? LOCAL2P_CELL_SIZE : undefined}
+                    showScore={mode === "solo"}
+                    targetName={showTargeting && humanTargetId ? displayName(mode, humanTargetId) : undefined}
+                    cycleTargetHint={canCycleTargets ? "C to switch" : undefined}
+                    shakeEnabled={settings.screenShake}
+                  />
+                )}
+                {opponentBoards.length > 0 && (
+                  <div className={styles.opponentsGrid}>
+                    {opponentBoards.map((b) => (
+                      <TetrBoardPanel
+                        key={b.id}
+                        board={b}
+                        boardWidth={BOARD_WIDTH}
+                        boardHeight={BOARD_HEIGHT}
+                        hiddenRows={BOARD_HIDDEN_ROWS}
+                        pieceColors={pieceColors}
+                        pieceStyle={pieceStyle}
+                        name={displayName(mode, b.id)}
+                        scheme={schemes.find((s) => s.playerId === b.id)}
+                        actions={actionsByPlayerId[b.id]}
+                        enabled={phase === "playing" && humanPlayerIds.has(b.id)}
+                        isOpponent={mode !== "local2p"}
+                        cellSize={mode === "local2p" ? LOCAL2P_CELL_SIZE : undefined}
+                        targetName={mode === "vsBot" && b.targetId ? displayName(mode, b.targetId) : undefined}
+                        isTargeted={showTargeting && b.id === humanTargetId}
+                        shakeEnabled={settings.screenShake}
+                      />
                     ))}
-                  </span>
-                </button>
-              ))}
+                  </div>
+                )}
+              </div>
+
+              {phase === "countdown" && (
+                <div className={styles.overlay}>
+                  <div className={styles.countdownNum}>{countdown > 0 ? countdown : "Go!"}</div>
+                </div>
+              )}
+
+              {phase === "paused" && (
+                <div className={styles.overlay}>
+                  <div className={styles.pausePanel}>
+                    <h3 className={styles.pauseTitle}>Paused</h3>
+                    <div className={styles.pauseColumns}>
+                      {schemes.map((s) => (
+                        <div key={s.playerId} className={styles.pauseColumn}>
+                          <div className={styles.pauseColumnHeader}>
+                            <span className={styles.controlSwatch} style={{ background: s.color }} />
+                            {s.label}
+                          </div>
+                          {pauseControlRows(s).map((row) => (
+                            <div key={row.label} className={styles.pauseRow}>
+                              <span className={styles.pauseRowLabel}>{row.label}</span>
+                              <span className={styles.pauseRowKeys}>{row.keys}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                    <div className={styles.pauseActions}>
+                      <button type="button" className={styles.pauseBtnPrimary} onClick={resumeGame}>
+                        Resume
+                      </button>
+                      <button type="button" className={styles.pauseBtnSecondary} onClick={quitToMenu}>
+                        Quit
+                      </button>
+                    </div>
+                    <p className={styles.pauseHint}>Press Esc to resume</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* The menu fills the fixed square directly (see .menuScreen) instead
+          of being measured/scaled like the boards -- it's UI chrome, not a
+          game viewport, so it should fill the square rather than being
+          letterboxed inside it. */}
+      {phase === "menu" && menuView === "settings" && (
+        <div className={styles.menuScreen}>
+          <SettingsScreen settings={settings} onChange={updateSettings} onBack={() => setMenuView("modes")} />
+        </div>
+      )}
+      {phase === "menu" && menuView === "modes" && (
+        <div className={styles.menuScreen}>
+          <button type="button" className={styles.cornerBtn} onClick={() => setMenuView("settings")} aria-label="Settings">
+            <GearIcon />
+          </button>
+          <h2 className={styles.menuTitle}>{resultText ?? "Tetr Versus"}</h2>
+          <p className={styles.menuSubtitle}>{resultText ? "Play again?" : "By Michael Mocioiu"}</p>
+          <div className={styles.menu}>
+            {modeOptions.map((opt) => (
+              <button key={opt.mode} type="button" className={styles.menuBtn} onClick={() => startMode(opt.mode)}>
+                <span className={styles.menuBtnLabel}>{opt.label}</span>
+                <span className={styles.menuBtnBlurb}>{opt.blurb}</span>
+                <span className={styles.controlLegend}>
+                  {controlSummaryForMode(opt.mode).map((entry) => (
+                    <span key={entry.label} className={styles.controlLegendItem}>
+                      <span className={styles.controlSwatch} style={{ background: entry.color }} />
+                      {entry.label}: {entry.text}
+                    </span>
+                  ))}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

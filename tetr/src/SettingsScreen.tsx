@@ -1,4 +1,11 @@
-import { COLOR_PALETTES, SPEED_OPTIONS, type TetrSettings } from "./settings";
+import {
+  BOT_COUNT_OPTIONS,
+  BOT_DIFFICULTY_OPTIONS,
+  COLOR_PALETTES,
+  PIECE_STYLES,
+  SPEED_OPTIONS,
+  type TetrSettings,
+} from "./settings";
 import styles from "./Tetr.module.css";
 
 export interface SettingsScreenProps {
@@ -33,6 +40,59 @@ export function SettingsScreen({ settings, onChange, onBack }: SettingsScreenPro
               ))}
             </div>
           </div>
+          <div className={styles.settingsRow}>
+            <span className={styles.settingsLabel}>Bots (vs AI)</span>
+            <div className={styles.faceRow}>
+              {BOT_COUNT_OPTIONS.map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  className={`${styles.faceBtn} ${settings.botCount === count ? styles.faceBtnActive : ""}`}
+                  aria-pressed={settings.botCount === count}
+                  onClick={() => onChange({ ...settings, botCount: count })}
+                >
+                  {count}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className={styles.settingsRow}>
+            <span className={styles.settingsLabel}>Bot difficulty</span>
+            <div className={styles.faceRow}>
+              {BOT_DIFFICULTY_OPTIONS.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  className={`${styles.faceBtn} ${settings.botDifficulty === opt.id ? styles.faceBtnActive : ""}`}
+                  aria-pressed={settings.botDifficulty === opt.id}
+                  onClick={() => onChange({ ...settings, botDifficulty: opt.id })}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className={styles.settingsRow}>
+            <span className={styles.settingsLabel}>Screen shake</span>
+            <div className={styles.faceRow}>
+              <button
+                type="button"
+                className={`${styles.faceBtn} ${settings.screenShake ? styles.faceBtnActive : ""}`}
+                aria-pressed={settings.screenShake}
+                onClick={() => onChange({ ...settings, screenShake: true })}
+              >
+                On
+              </button>
+              <button
+                type="button"
+                className={`${styles.faceBtn} ${!settings.screenShake ? styles.faceBtnActive : ""}`}
+                aria-pressed={!settings.screenShake}
+                onClick={() => onChange({ ...settings, screenShake: false })}
+              >
+                Off
+              </button>
+            </div>
+          </div>
         </section>
 
         <section className={styles.settingsSection}>
@@ -52,6 +112,32 @@ export function SettingsScreen({ settings, onChange, onBack }: SettingsScreenPro
                   ))}
                 </span>
                 <span className={styles.themeLabel}>{palette.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.settingsSection}>
+          <h3 className={styles.settingsSectionTitle}>Piece design</h3>
+          <div className={styles.themeRow}>
+            {PIECE_STYLES.map((style) => (
+              <button
+                key={style.id}
+                type="button"
+                className={`${styles.themeBtn} ${settings.pieceStyleId === style.id ? styles.themeBtnActive : ""}`}
+                aria-pressed={settings.pieceStyleId === style.id}
+                onClick={() => onChange({ ...settings, pieceStyleId: style.id })}
+              >
+                <span
+                  className={styles.pieceStylePreview}
+                  style={{
+                    borderRadius: `${Math.round(style.radiusFactor * 40)}px`,
+                    background: style.bevel
+                      ? "linear-gradient(135deg, #5fe0d6, #1f7c76)"
+                      : "#31C7EF",
+                  }}
+                />
+                <span className={styles.themeLabel}>{style.label}</span>
               </button>
             ))}
           </div>

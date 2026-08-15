@@ -41,13 +41,21 @@ function PiecePreview({ type, color, size = 5 }: { type: PieceType | null; color
 interface TetrHUDProps {
   board: TetrPlayerState;
   pieceColors: Record<string, string>;
+  showScore?: boolean;
 }
 
-export function TetrHUD({ board, pieceColors }: TetrHUDProps) {
+export function TetrHUD({ board, pieceColors, showScore = false }: TetrHUDProps) {
   const pendingGarbage = board.garbageQueue.reduce((sum, g) => sum + g.amount, 0);
   const combo = Math.max(board.comboCount, 0);
   return (
     <div className={styles.hud}>
+      {showScore && (
+        <div className={styles.hudBox}>
+          <div className={styles.hudLabel}>Score</div>
+          <div className={styles.scoreValue}>{board.score.toLocaleString()}</div>
+          <div className={styles.levelValue}>Level {board.level}</div>
+        </div>
+      )}
       <div className={styles.hudBox}>
         <div className={styles.hudLabel}>Hold</div>
         <PiecePreview type={board.held} color={board.held ? pieceColors[board.held] : undefined} size={8} />
