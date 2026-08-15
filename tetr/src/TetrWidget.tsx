@@ -385,47 +385,51 @@ export function TetrWidget() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
 
-              {phase === "countdown" && (
-                <div className={styles.overlay}>
-                  <div className={styles.countdownNum}>{countdown > 0 ? countdown : "Go!"}</div>
-                </div>
-              )}
+          {/* Rendered as a sibling of .fitStage (not inside it) so `inset: 0`
+              covers the whole widget box -- .fitStage is sized/scaled to the
+              boards' own content, which is smaller than the full square
+              whenever the boards don't fill it edge to edge. */}
+          {phase === "countdown" && (
+            <div className={styles.overlay}>
+              <div className={styles.countdownNum}>{countdown > 0 ? countdown : "Go!"}</div>
+            </div>
+          )}
 
-              {phase === "paused" && (
-                <div className={styles.overlay}>
-                  <div className={styles.pausePanel}>
-                    <h3 className={styles.pauseTitle}>Paused</h3>
-                    <div className={styles.pauseColumns}>
-                      {schemes.map((s) => (
-                        <div key={s.playerId} className={styles.pauseColumn}>
-                          <div className={styles.pauseColumnHeader}>
-                            <span className={styles.controlSwatch} style={{ background: s.color }} />
-                            {s.label}
-                          </div>
-                          {pauseControlRows(s).map((row) => (
-                            <div key={row.label} className={styles.pauseRow}>
-                              <span className={styles.pauseRowLabel}>{row.label}</span>
-                              <span className={styles.pauseRowKeys}>{row.keys}</span>
-                            </div>
-                          ))}
+          {phase === "paused" && (
+            <div className={styles.overlay}>
+              <div className={styles.pausePanel}>
+                <h3 className={styles.pauseTitle}>Paused</h3>
+                <div className={styles.pauseColumns}>
+                  {schemes.map((s) => (
+                    <div key={s.playerId} className={styles.pauseColumn}>
+                      <div className={styles.pauseColumnHeader}>
+                        <span className={styles.controlSwatch} style={{ background: s.color }} />
+                        {s.label}
+                      </div>
+                      {pauseControlRows(s).map((row) => (
+                        <div key={row.label} className={styles.pauseRow}>
+                          <span className={styles.pauseRowLabel}>{row.label}</span>
+                          <span className={styles.pauseRowKeys}>{row.keys}</span>
                         </div>
                       ))}
                     </div>
-                    <div className={styles.pauseActions}>
-                      <button type="button" className={styles.pauseBtnPrimary} onClick={resumeGame}>
-                        Resume
-                      </button>
-                      <button type="button" className={styles.pauseBtnSecondary} onClick={quitToMenu}>
-                        Quit
-                      </button>
-                    </div>
-                    <p className={styles.pauseHint}>Press Esc to resume</p>
-                  </div>
+                  ))}
                 </div>
-              )}
+                <div className={styles.pauseActions}>
+                  <button type="button" className={styles.pauseBtnPrimary} onClick={resumeGame}>
+                    Resume
+                  </button>
+                  <button type="button" className={styles.pauseBtnSecondary} onClick={quitToMenu}>
+                    Quit
+                  </button>
+                </div>
+                <p className={styles.pauseHint}>Press Esc to resume</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
