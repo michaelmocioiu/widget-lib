@@ -91,10 +91,22 @@ const MODE_OPTIONS: { mode: GameMode; label: string; blurb: string }[] = [
   { mode: "vsBot", label: "1 Player vs AI", blurb: "Race the bot" },
 ];
 
+// Matches the CSS media query that shows the touch d-pad (Snake.module.css
+// `.dpad` / `@media (hover: none) and (pointer: coarse)`) -- local2p needs a
+// shared physical keyboard, which touch devices don't have.
+function isTouchDevice(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+}
+
 type Phase = "menu" | "countdown" | "playing";
 type MenuView = "modes" | "settings";
 
 export function SnakeWidget() {
+  const [isMobile] = useState<boolean>(() => isTouchDevice());
+  const modeOptions = useMemo(
+    () => (isMobile ? MODE_OPTIONS.filter((opt) => opt.mode !== "local2p") : MODE_OPTIONS),
+    [isMobile],
+  );
   const [mode, setMode] = useState<GameMode>("vsBot");
   const [phase, setPhase] = useState<Phase>("menu");
   const [menuView, setMenuView] = useState<MenuView>("modes");
@@ -227,7 +239,7 @@ export function SnakeWidget() {
             <h2 className={styles.menuTitle}>{resultText ?? "Snake Duel"}</h2>
             <p className={styles.menuSubtitle}>{resultText ? "Play again?" : "By Michael Mocioiu"}</p>
             <div className={styles.menu}>
-              {MODE_OPTIONS.map((opt) => (
+              {modeOptions.map((opt) => (
                 <button
                   key={opt.mode}
                   type="button"
