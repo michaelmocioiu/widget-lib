@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Michael Benjamin Mocioiu" />
+    <meta
+      name="description"
+      content="Tetr Versus, a browser-based widget by Michael Benjamin Mocioiu. Embed it on your own page."
+    />
+    <link
+      rel="canonical"
+      href="https://michaelmocioiu.github.io/widget-lib/tetr/"
+    />
+    <title>Tetr Versus - Michael's Widgets</title>
+    <style>
+      body {
+        background: #0b0d12;
+        color: #eee;
+        font-family: system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 0.75rem 1rem;
+        margin: 0;
+      }
+      .back-link {
+        position: absolute;
+        top: 0.75rem;
+        left: 0.75rem;
+        z-index: 10;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 0.75rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+        color: #eee;
+        text-decoration: none;
+        font-size: 0.85rem;
+      }
+      .back-link:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+      header {
+        width: 100%;
+        max-width: 640px;
+        padding: 0.25rem 0;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+      }
+      section {
+        width: 100%;
+        max-width: 640px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      section > h2 {
+        font-size: 0.95rem;
+        margin: 0;
+        align-self: flex-start;
+      }
+      .code-card {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #2a3040;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #14171e;
+      }
+      .code-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0.75rem;
+        background: #1a1e27;
+        border-bottom: 1px solid #2a3040;
+      }
+      .code-card-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #8891a3;
+      }
+      pre {
+        padding: 1rem;
+        overflow-x: auto;
+        font-size: 0.85rem;
+        margin: 0;
+      }
+      .copy-btn {
+        background: #1f2430;
+        color: #eee;
+        border: 1px solid #2a3040;
+        border-radius: 6px;
+        padding: 0.3rem 0.65rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+      }
+      .copy-btn:hover {
+        background: #2a3040;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="back-link" href="../">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5" />
+        <path d="M12 19l-7-7 7-7" />
+      </svg>
+      Back to Gallery
+    </a>
+
+    <header>
+      <h1>Tetr Versus</h1>
+    </header>
+
+    <section id="dev-live-section" style="display: none">
+      <h2>Dev (live)</h2>
+      <div id="root"></div>
+    </section>
+    <script type="module" src="/src/main.tsx"></script>
+
+    <section>
+      <div id="tetr-widget"></div>
+      <script src="https://michaelmocioiu.github.io/widget-lib/tetr/dist/tetr.js"></script>
+      <script>
+        if (window.TetrVersus?.mount) {
+          window.TetrVersus.mount(document.getElementById("tetr-widget"));
+        } else {
+          console.error(
+            "TetrVersus did not load. Check script URL and deploy path.",
+          );
+        }
+      </script>
+    </section>
+
+    <section>
+      <h2>Embed elsewhere</h2>
+      <div class="code-card">
+        <div class="code-card-header">
+          <span class="code-card-label">HTML</span>
+          <button class="copy-btn" id="copy-embed-btn" type="button">Copy</button>
+        </div>
+        <pre id="embed-code"><code>&lt;div id="tetr-widget"&gt;&lt;/div&gt;
+&lt;script src="https://michaelmocioiu.github.io/widget-lib/tetr/dist/tetr.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  if (window.TetrVersus?.mount) {
+    window.TetrVersus.mount(document.getElementById("tetr-widget"));
+  } else {
+    console.error("TetrVersus did not load. Check script URL and deploy path.");
+  }
+&lt;/script&gt;</code></pre>
+      </div>
+    </section>
+
+    <script>
+      document.getElementById("copy-embed-btn").addEventListener("click", () => {
+        const btn = document.getElementById("copy-embed-btn");
+        const code = document.getElementById("embed-code").innerText;
+        navigator.clipboard.writeText(code).then(() => {
+          btn.textContent = "Copied!";
+          setTimeout(() => {
+            btn.textContent = "Copy";
+          }, 1500);
+        });
+      });
+    </script>
+  </body>
+</html>

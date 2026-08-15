@@ -1,0 +1,482 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-width: 0;
+  touch-action: none;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.canvasWrap {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.boardsRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
+}
+
+.boardColumn {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.boardStack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.boardName {
+  font-size: 0.75rem;
+  color: #aaa;
+  white-space: nowrap;
+}
+
+.boardCanvas {
+  border-radius: 6px;
+  border: 2px solid #333;
+  max-width: 100%;
+  max-height: 70vh;
+  min-width: 0;
+  width: auto;
+  height: auto;
+  flex-shrink: 1;
+  background: #14151a;
+}
+
+.boardCanvasDim {
+  opacity: 0.5;
+  filter: grayscale(0.4);
+}
+
+.hud {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.hudBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(18, 18, 20, 0.6);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.hudLabel {
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #999;
+}
+
+.piecePreview {
+  display: block;
+}
+
+.nextQueue {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.garbageCount {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #e0524f;
+  font-variant-numeric: tabular-nums;
+}
+
+.comboFlash {
+  display: flex;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #f7d308;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.statusRow {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+.boardShake {
+  animation: tetrShake 220ms ease-out;
+}
+
+@keyframes tetrShake {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-3px, 2px); }
+  40% { transform: translate(3px, -2px); }
+  60% { transform: translate(-2px, 1px); }
+  80% { transform: translate(2px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+
+.lineClearFlash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  border-radius: 6px;
+  pointer-events: none;
+  animation: tetrLineFlash 260ms ease-out forwards;
+}
+
+@keyframes tetrLineFlash {
+  0% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+.popupLayer {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  z-index: 2;
+  width: max-content;
+}
+
+.popup {
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
+  animation: tetrPopup 1100ms ease-out forwards;
+}
+
+@keyframes tetrPopup {
+  0% { opacity: 0; transform: translateY(6px) scale(0.85); }
+  15% { opacity: 1; transform: translateY(0) scale(1.08); }
+  30% { transform: translateY(0) scale(1); }
+  75% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-10px) scale(1); }
+}
+
+.popup_single, .popup_double { color: #9fd8ff; }
+.popup_triple { color: #ffd166; }
+.popup_tetris { color: #ff5d73; font-size: 1.35rem; }
+.popup_combo { color: #f7d308; }
+.popup_b2b { color: #c792ff; }
+
+/* ---- Menu / settings shell (same shape as the snake widget) ---- */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 6px;
+  color: #fff;
+  text-align: center;
+}
+
+.menuOverlay {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 340px;
+  padding: 0.5rem 0;
+}
+
+.menuTitle {
+  margin: 0 0 0.5rem;
+  text-align: center;
+  color: #eee;
+}
+
+.menuSubtitle {
+  align-self: center;
+  margin: -0.25rem 0 0.5rem;
+  text-align: center;
+  color: #ccc;
+  font-size: 1rem;
+}
+
+.menuBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: none;
+  background: #3f4451;
+  color: #fff;
+  cursor: pointer;
+  text-align: center;
+}
+
+.menuBtn:hover {
+  filter: brightness(1.05);
+}
+
+.menuBtnLabel {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.menuBtnBlurb {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.menuBtn .controlLegend {
+  color: #fff;
+  opacity: 0.85;
+}
+
+.countdownNum {
+  font-size: 3.5rem;
+  font-weight: 800;
+}
+
+.controlLegend {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+.controlLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.controlSwatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.cornerBtn {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  cursor: pointer;
+}
+
+.cornerBtn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.settingsScreen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.settingsScreen .cornerBtn {
+  left: 0.75rem;
+  right: auto;
+}
+
+.settingsBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 0.25rem 0 0.5rem;
+  text-align: left;
+}
+
+.settingsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: #23262f;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+}
+
+.settingsSectionTitle {
+  margin: 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #aaa;
+}
+
+.settingsRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.settingsLabel {
+  flex: 1;
+  font-size: 0.9rem;
+  color: #eee;
+}
+
+.faceRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+.faceBtn {
+  border-radius: 6px;
+  border: none;
+  background: #3f4451;
+  color: #ddd;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  cursor: pointer;
+}
+
+.faceBtnActive {
+  background: #38bdf8;
+  color: #08202b;
+  font-weight: 700;
+}
+
+.themeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+}
+
+.themeBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.2rem;
+  border-radius: 8px;
+}
+
+.themeBtnActive {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.paletteSwatches {
+  display: flex;
+  gap: 2px;
+  width: 2.6rem;
+  height: 1.6rem;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+}
+
+.themeBtnActive .paletteSwatches {
+  border-color: #fff;
+}
+
+.paletteSwatch {
+  flex: 1;
+}
+
+.themeLabel {
+  font-size: 0.75rem;
+  color: #ccc;
+}
+
+.controls {
+  display: none;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .controls {
+    display: flex;
+  }
+}
+
+.ctrlBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3rem;
+  min-height: 3rem;
+  border-radius: 8px;
+  border: none;
+  background: #fff;
+  color: #1a1a1a;
+  font-size: 1.4rem;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.ctrlBtn:active {
+  filter: brightness(0.9);
+}
+
+.holdBtn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  min-width: 4rem;
+}
